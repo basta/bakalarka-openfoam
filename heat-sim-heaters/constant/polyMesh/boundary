@@ -18,26 +18,23 @@ FoamFile
 
 3
 (
-    movingWall
+    inlet
     {
-        type            wall;
-        inGroups        1(wall);
-        nFaces          20;
-        startFace       760;
+        type            patch;
+        nFaces          300;
+        startFace       3220;
     }
-    fixedWalls
+    outlet
     {
-        type            wall;
-        inGroups        1(wall);
-        nFaces          60;
-        startFace       780;
+        type            patch;
+        nFaces          300;
+        startFace       3520;
     }
-    frontAndBack
+    wall
     {
-        type            empty;
-        inGroups        1(empty);
-        nFaces          800;
-        startFace       840;
+        type            patch;
+        nFaces          160;
+        startFace       3820;
     }
 )
 
