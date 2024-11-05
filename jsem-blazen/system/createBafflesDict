@@ -1,0 +1,17 @@
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      createBafflesDict;
+}
+
+// Exported by SnappyHexMesh GUI add-on for Blender v1.8
+// Source file: /home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/model.blend
+// Export date: 2024-10-30 23:03:13.263316
+
+internalFacesOnly true;
+
+baffles
+{
+
+}

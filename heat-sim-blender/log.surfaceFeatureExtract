@@ -1,0 +1,85 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2406                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+Build  : _52c02cff-20240620 OPENFOAM=2406 version=2406
+Arch   : "LSB;label=32;scalar=64"
+Exec   : surfaceFeatureExtract
+Date   : Oct 24 2024
+Time   : 00:29:43
+Host   : fedora
+PID    : 209850
+I/O    : uncollated
+Case   : /home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender
+nProcs : 1
+trapFpe: Floating point exception trapping enabled (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 5, maxFileModificationPolls 20)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+
+Note: Feature line extraction only valid on closed manifold surfaces
+
+Reading surfaceFeatureExtractDict
+
+Surfaces     : Cube.stl
+Output       : Cube
+Load options : offset
+Write options: writeObj=yes writeVTK=off
+
+Statistics:
+Triangles    : 12 in 1 region(s)
+Vertices     : 8
+Bounding Box : (-10 -10 -1) (10 10 1)
+
+Constructing feature set from included angle 150
+Selecting edges based purely on geometric tests: no
+
+Initial Feature set:
+    points : 8
+    edges  : 12
+    of which
+        region edges   : 0
+        external edges : 12
+        internal edges : 0
+
+Final Feature set:
+    points : 8
+    of which
+        convex             : 8
+        concave            : 0
+        mixed              : 0
+        non-feature        : 0
+    edges  : 12
+    of which
+        external edges     : 12
+        internal edges     : 0
+        flat edges         : 0
+        open edges         : 0
+        multiply connected : 0
+
+Writing extendedFeatureEdgeMesh to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender/constant/extendedFeatureEdgeMesh/Cube.extendedFeatureEdgeMesh"
+
+Writing extendedEdgeMesh components to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender/constant/extendedFeatureEdgeMesh/Cube"
+Writing 8 convex feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender/constant/extendedFeatureEdgeMesh/Cube_convexFeaturePts.obj"
+Writing 0 concave feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender/constant/extendedFeatureEdgeMesh/Cube_concaveFeaturePts.obj"
+Writing 0 mixed feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender/constant/extendedFeatureEdgeMesh/Cube_mixedFeaturePts.obj"
+Writing 0 mixed feature point structure to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender/constant/extendedFeatureEdgeMesh/Cube_mixedFeaturePtsStructure.obj"
+Writing 12 external edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender/constant/extendedFeatureEdgeMesh/Cube_externalEdges.obj"
+Writing 0 internal edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender/constant/extendedFeatureEdgeMesh/Cube_internalEdges.obj"
+Writing 0 flat edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender/constant/extendedFeatureEdgeMesh/Cube_flatEdges.obj"
+Writing 0 open edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender/constant/extendedFeatureEdgeMesh/Cube_openEdges.obj"
+Writing 0 multiple edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender/constant/extendedFeatureEdgeMesh/Cube_multipleEdges.obj"
+Writing 0 region edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender/constant/extendedFeatureEdgeMesh/Cube_regionEdges.obj"
+Writing 12 edge directions to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender/constant/extendedFeatureEdgeMesh/Cube_edgeDirections.obj"
+
+Writing featureEdgeMesh to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender/constant/triSurface/Cube.eMesh"
+ExecutionTime = 0 s  ClockTime = 0 s
+
+End
+
