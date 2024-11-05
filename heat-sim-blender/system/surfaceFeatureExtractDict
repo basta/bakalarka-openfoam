@@ -1,0 +1,22 @@
+FoamFile
+{
+    version         2;
+    format          ascii;
+    class           dictionary;
+    object          surfaceFeaturesDict;
+}
+
+// Exported by SnappyHexMesh GUI add-on for Blender v1.8
+// Source file: /home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender/simple.blend
+// Export date: 2024-10-24 00:29:27.940771
+
+
+Cube.stl
+{
+    extractionMethod extractFromSurface;
+    extractFromSurfaceCoeffs { includedAngle 150; }
+    writeObj yes;
+}
+
+
+

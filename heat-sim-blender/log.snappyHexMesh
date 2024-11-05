@@ -1,0 +1,106 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2406                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+Build  : _52c02cff-20240620 OPENFOAM=2406 version=2406
+Arch   : "LSB;label=32;scalar=64"
+Exec   : snappyHexMesh
+Date   : Oct 24 2024
+Time   : 00:29:43
+Host   : fedora
+PID    : 209854
+I/O    : uncollated
+Case   : /home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-blender
+nProcs : 1
+trapFpe: Floating point exception trapping enabled (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 5, maxFileModificationPolls 20)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+Create mesh for time = 2.1
+
+Read mesh in = 0 s
+
+Overall mesh bounding box  : (0.4200003 0.42 -0.8482575) (0.8250001 0.7404802 -0.447029)
+Relative tolerance         : 1e-06
+Absolute matching distance : 6.540005e-07
+
+Reading refinement surfaces.
+Read refinement surfaces in = 0.01 s
+
+Reading refinement shells.
+Read refinement shells in = 0 s
+
+Setting refinement level of surface to be consistent with shells.
+For geometry Cube detected 0 uncached triangles out of 12
+Checked shell refinement in = 0 s
+
+Reading features.
+Read edgeMesh Cube.eMesh
+    points      : 8
+    edges       : 12
+    boundingBox : (-10 -10 -1) (10 10 1)
+
+Refinement level according to distance to "Cube.eMesh" (8 points, 12 edges).
+    level 0 for all cells within 0 metre.
+Read features in = 0 s
+
+
+Determining initial surface intersections
+-----------------------------------------
+
+Edge intersection testing:
+    Number of edges             : 6
+    Number of edges to retest   : 0
+    Number of intersected edges : 0
+Edge intersection testing:
+    Number of edges             : 6
+    Number of edges to retest   : 6
+    Number of intersected edges : 0
+Calculated surface intersections in = 0 s
+
+Initial mesh : cells:1  faces:6  points:8
+Cells per refinement level:
+    0	1
+Setting refinement level of surface to be consistent with curvature.
+Checked curvature refinement in = 0 s
+
+
+Adding patches for surface regions
+----------------------------------
+
+Patch Type                Region                        
+----- ----                ------                        
+Cube:
+
+1     patch               Cube                          
+
+Added patches in = 0 s
+
+Edge intersection testing:
+    Number of edges             : 6
+    Number of edges to retest   : 0
+    Number of intersected edges : 0
+Decomposition method none [1]
+Not merging patch-faces of cell to preserve (split)hex cell shape.
+
+
+Refinement phase
+----------------
+
+
+
+--> FOAM FATAL ERROR: (openfoam-2406)
+Point (0 0 0) is not inside the mesh or on a face or edge.
+Bounding box of the mesh:(0.4200003 0.42 -0.8482575) (0.8250001 0.7404802 -0.447029)
+
+    From static Foam::labelList Foam::refinementParameters::findCells(bool, const Foam::polyMesh&, const Foam::pointField&)
+    in file snappyHexMeshDriver/refinementParameters/refinementParameters.C at line 249.
+
+FOAM exiting
+

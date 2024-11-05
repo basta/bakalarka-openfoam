@@ -1,0 +1,293 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2406                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+Build  : _52c02cff-20240620 OPENFOAM=2406 version=2406
+Arch   : "LSB;label=32;scalar=64"
+Exec   : surfaceFeatureExtract
+Date   : Oct 30 2024
+Time   : 23:03:20
+Host   : fedora
+PID    : 214291
+I/O    : uncollated
+Case   : /home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen
+nProcs : 1
+trapFpe: Floating point exception trapping enabled (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 5, maxFileModificationPolls 20)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+
+Note: Feature line extraction only valid on closed manifold surfaces
+
+Reading surfaceFeatureExtractDict
+
+Surfaces     : cooler.stl
+Output       : cooler
+Load options : offset
+Write options: writeObj=yes writeVTK=off
+
+Statistics:
+Triangles    : 12 in 1 region(s)
+Vertices     : 8
+Bounding Box : (-11.59783 -1.64012 -0.2468067) (-8.402172 1.64012 5)
+
+Constructing feature set from included angle 150
+Selecting edges based purely on geometric tests: no
+
+Initial Feature set:
+    points : 8
+    edges  : 12
+    of which
+        region edges   : 0
+        external edges : 12
+        internal edges : 0
+
+Final Feature set:
+    points : 8
+    of which
+        convex             : 8
+        concave            : 0
+        mixed              : 0
+        non-feature        : 0
+    edges  : 12
+    of which
+        external edges     : 12
+        internal edges     : 0
+        flat edges         : 0
+        open edges         : 0
+        multiply connected : 0
+
+Writing extendedFeatureEdgeMesh to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/cooler.extendedFeatureEdgeMesh"
+
+Writing extendedEdgeMesh components to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/cooler"
+Writing 8 convex feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/cooler_convexFeaturePts.obj"
+Writing 0 concave feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/cooler_concaveFeaturePts.obj"
+Writing 0 mixed feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/cooler_mixedFeaturePts.obj"
+Writing 0 mixed feature point structure to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/cooler_mixedFeaturePtsStructure.obj"
+Writing 12 external edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/cooler_externalEdges.obj"
+Writing 0 internal edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/cooler_internalEdges.obj"
+Writing 0 flat edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/cooler_flatEdges.obj"
+Writing 0 open edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/cooler_openEdges.obj"
+Writing 0 multiple edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/cooler_multipleEdges.obj"
+Writing 0 region edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/cooler_regionEdges.obj"
+Writing 12 edge directions to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/cooler_edgeDirections.obj"
+
+Writing featureEdgeMesh to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/triSurface/cooler.eMesh"
+Surfaces     : Cylinder.stl
+Output       : Cylinder
+Load options : offset
+Write options: writeObj=yes writeVTK=off
+
+Statistics:
+Triangles    : 134 in 1 region(s)
+Vertices     : 76
+Bounding Box : (-20 -20 -5) (20 20 5)
+
+Constructing feature set from included angle 150
+Selecting edges based purely on geometric tests: no
+
+Initial Feature set:
+    points : 20
+    edges  : 80
+    of which
+        region edges   : 20
+        external edges : 60
+        internal edges : 0
+
+Final Feature set:
+    points : 76
+    of which
+        convex             : 0
+        concave            : 0
+        mixed              : 20
+        non-feature        : 56
+    edges  : 80
+    of which
+        external edges     : 60
+        internal edges     : 0
+        flat edges         : 0
+        open edges         : 20
+        multiply connected : 0
+
+Writing extendedFeatureEdgeMesh to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/Cylinder.extendedFeatureEdgeMesh"
+
+Writing extendedEdgeMesh components to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/Cylinder"
+Writing 0 convex feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/Cylinder_convexFeaturePts.obj"
+Writing 0 concave feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/Cylinder_concaveFeaturePts.obj"
+Writing 20 mixed feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/Cylinder_mixedFeaturePts.obj"
+Writing 20 mixed feature point structure to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/Cylinder_mixedFeaturePtsStructure.obj"
+Writing 60 external edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/Cylinder_externalEdges.obj"
+Writing 0 internal edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/Cylinder_internalEdges.obj"
+Writing 0 flat edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/Cylinder_flatEdges.obj"
+Writing 20 open edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/Cylinder_openEdges.obj"
+Writing 0 multiple edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/Cylinder_multipleEdges.obj"
+Writing 20 region edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/Cylinder_regionEdges.obj"
+Writing 80 edge directions to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/Cylinder_edgeDirections.obj"
+
+Writing featureEdgeMesh to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/triSurface/Cylinder.eMesh"
+Surfaces     : heater.stl
+Output       : heater
+Load options : offset
+Write options: writeObj=yes writeVTK=off
+
+Statistics:
+Triangles    : 12 in 1 region(s)
+Vertices     : 8
+Bounding Box : (8.402172 -1.64012 -0.2468067) (11.59783 1.64012 5)
+
+Constructing feature set from included angle 150
+Selecting edges based purely on geometric tests: no
+
+Initial Feature set:
+    points : 8
+    edges  : 12
+    of which
+        region edges   : 0
+        external edges : 0
+        internal edges : 12
+
+Final Feature set:
+    points : 8
+    of which
+        convex             : 0
+        concave            : 8
+        mixed              : 0
+        non-feature        : 0
+    edges  : 12
+    of which
+        external edges     : 0
+        internal edges     : 12
+        flat edges         : 0
+        open edges         : 0
+        multiply connected : 0
+
+Writing extendedFeatureEdgeMesh to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/heater.extendedFeatureEdgeMesh"
+
+Writing extendedEdgeMesh components to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/heater"
+Writing 0 convex feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/heater_convexFeaturePts.obj"
+Writing 8 concave feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/heater_concaveFeaturePts.obj"
+Writing 0 mixed feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/heater_mixedFeaturePts.obj"
+Writing 0 mixed feature point structure to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/heater_mixedFeaturePtsStructure.obj"
+Writing 0 external edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/heater_externalEdges.obj"
+Writing 12 internal edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/heater_internalEdges.obj"
+Writing 0 flat edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/heater_flatEdges.obj"
+Writing 0 open edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/heater_openEdges.obj"
+Writing 0 multiple edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/heater_multipleEdges.obj"
+Writing 0 region edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/heater_regionEdges.obj"
+Writing 12 edge directions to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/heater_edgeDirections.obj"
+
+Writing featureEdgeMesh to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/triSurface/heater.eMesh"
+Surfaces     : inlet.stl
+Output       : inlet
+Load options : offset
+Write options: writeObj=yes writeVTK=off
+
+Statistics:
+Triangles    : 2 in 1 region(s)
+Vertices     : 4
+Bounding Box : (-20 -3.901806 -5) (-19.61571 0 5)
+
+Constructing feature set from included angle 150
+Selecting edges based purely on geometric tests: no
+
+Initial Feature set:
+    points : 4
+    edges  : 4
+    of which
+        region edges   : 4
+        external edges : 0
+        internal edges : 0
+
+Final Feature set:
+    points : 4
+    of which
+        convex             : 0
+        concave            : 0
+        mixed              : 4
+        non-feature        : 0
+    edges  : 4
+    of which
+        external edges     : 0
+        internal edges     : 0
+        flat edges         : 0
+        open edges         : 4
+        multiply connected : 0
+
+Writing extendedFeatureEdgeMesh to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/inlet.extendedFeatureEdgeMesh"
+
+Writing extendedEdgeMesh components to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/inlet"
+Writing 0 convex feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/inlet_convexFeaturePts.obj"
+Writing 0 concave feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/inlet_concaveFeaturePts.obj"
+Writing 4 mixed feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/inlet_mixedFeaturePts.obj"
+Writing 4 mixed feature point structure to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/inlet_mixedFeaturePtsStructure.obj"
+Writing 0 external edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/inlet_externalEdges.obj"
+Writing 0 internal edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/inlet_internalEdges.obj"
+Writing 0 flat edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/inlet_flatEdges.obj"
+Writing 4 open edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/inlet_openEdges.obj"
+Writing 0 multiple edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/inlet_multipleEdges.obj"
+Writing 4 region edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/inlet_regionEdges.obj"
+Writing 4 edge directions to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/inlet_edgeDirections.obj"
+
+Writing featureEdgeMesh to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/triSurface/inlet.eMesh"
+Surfaces     : outlet.stl
+Output       : outlet
+Load options : offset
+Write options: writeObj=yes writeVTK=off
+
+Statistics:
+Triangles    : 2 in 1 region(s)
+Vertices     : 4
+Bounding Box : (19.61571 -3.901806 -5) (20 0 5)
+
+Constructing feature set from included angle 150
+Selecting edges based purely on geometric tests: no
+
+Initial Feature set:
+    points : 4
+    edges  : 4
+    of which
+        region edges   : 4
+        external edges : 0
+        internal edges : 0
+
+Final Feature set:
+    points : 4
+    of which
+        convex             : 0
+        concave            : 0
+        mixed              : 4
+        non-feature        : 0
+    edges  : 4
+    of which
+        external edges     : 0
+        internal edges     : 0
+        flat edges         : 0
+        open edges         : 4
+        multiply connected : 0
+
+Writing extendedFeatureEdgeMesh to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/outlet.extendedFeatureEdgeMesh"
+
+Writing extendedEdgeMesh components to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/outlet"
+Writing 0 convex feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/outlet_convexFeaturePts.obj"
+Writing 0 concave feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/outlet_concaveFeaturePts.obj"
+Writing 4 mixed feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/outlet_mixedFeaturePts.obj"
+Writing 4 mixed feature point structure to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/outlet_mixedFeaturePtsStructure.obj"
+Writing 0 external edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/outlet_externalEdges.obj"
+Writing 0 internal edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/outlet_internalEdges.obj"
+Writing 0 flat edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/outlet_flatEdges.obj"
+Writing 4 open edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/outlet_openEdges.obj"
+Writing 0 multiple edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/outlet_multipleEdges.obj"
+Writing 4 region edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/outlet_regionEdges.obj"
+Writing 4 edge directions to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/extendedFeatureEdgeMesh/outlet_edgeDirections.obj"
+
+Writing featureEdgeMesh to "/home/basta/Documents/bakalarka/bakalarka-openfoam/jsem-blazen/constant/triSurface/outlet.eMesh"
+ExecutionTime = 0.01 s  ClockTime = 0 s
+
+End
+
