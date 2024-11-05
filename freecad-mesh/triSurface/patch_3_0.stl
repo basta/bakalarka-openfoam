@@ -1,0 +1,72 @@
+solid patch_3_0
+ facet normal 0.0 -1.0 0.0
+  outer loop
+   vertex 0.1 0.02 0.01
+   vertex 0.1 0.02 0.04
+   vertex 0.06 0.02 0.01
+  endloop
+ endfacet
+ facet normal 0.0 -1.0 0.0
+  outer loop
+   vertex 0.06 0.02 0.01
+   vertex 0.1 0.02 0.04
+   vertex 0.06 0.02 0.04
+  endloop
+ endfacet
+ facet normal -1.0 0.0 0.0
+  outer loop
+   vertex 0.1 -0.02 0.01
+   vertex 0.1 -0.02 0.04
+   vertex 0.1 0.02 0.01
+  endloop
+ endfacet
+ facet normal -1.0 0.0 0.0
+  outer loop
+   vertex 0.1 0.02 0.01
+   vertex 0.1 -0.02 0.04
+   vertex 0.1 0.02 0.04
+  endloop
+ endfacet
+ facet normal 0.0 0.0 1.0
+  outer loop
+   vertex 0.1 0.02 0.01
+   vertex 0.06 0.02 0.01
+   vertex 0.06 -0.02 0.01
+  endloop
+ endfacet
+ facet normal 0.0 0.0 1.0
+  outer loop
+   vertex 0.1 0.02 0.01
+   vertex 0.06 -0.02 0.01
+   vertex 0.1 -0.02 0.01
+  endloop
+ endfacet
+ facet normal 0.0 1.0 0.0
+  outer loop
+   vertex 0.1 -0.02 0.04
+   vertex 0.1 -0.02 0.01
+   vertex 0.06 -0.02 0.01
+  endloop
+ endfacet
+ facet normal 0.0 1.0 0.0
+  outer loop
+   vertex 0.1 -0.02 0.04
+   vertex 0.06 -0.02 0.01
+   vertex 0.06 -0.02 0.04
+  endloop
+ endfacet
+ facet normal 1.0 0.0 0.0
+  outer loop
+   vertex 0.06 -0.02 0.04
+   vertex 0.06 -0.02 0.01
+   vertex 0.06 0.02 0.01
+  endloop
+ endfacet
+ facet normal 1.0 -0.0 0.0
+  outer loop
+   vertex 0.06 -0.02 0.04
+   vertex 0.06 0.02 0.01
+   vertex 0.06 0.02 0.04
+  endloop
+ endfacet
+endsolid patch_3_0
