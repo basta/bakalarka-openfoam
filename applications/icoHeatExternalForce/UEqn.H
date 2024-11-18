@@ -8,7 +8,8 @@
       + MRF.DDt(U)
       + turbulence->divDevReff(U)
      ==
-        fvOptions(U)
+        fvOptions(U) + F
+
     );
 
     UEqn.relax();
@@ -26,7 +27,6 @@
                 (
                   - ghf*fvc::snGrad(rhok)
                   - fvc::snGrad(p_rgh)
-                  + F
                 )*mesh.magSf()
             )
         );
