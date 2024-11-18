@@ -1,0 +1,85 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2406                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+Build  : _52c02cff-20240620 OPENFOAM=2406 version=2406
+Arch   : "LSB;label=32;scalar=64"
+Exec   : surfaceFeatureExtract
+Date   : Oct 29 2024
+Time   : 13:25:46
+Host   : fedora
+PID    : 89088
+I/O    : uncollated
+Case   : /home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-heaters-newmesh
+nProcs : 1
+trapFpe: Floating point exception trapping enabled (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 5, maxFileModificationPolls 20)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+
+Note: Feature line extraction only valid on closed manifold surfaces
+
+Reading surfaceFeatureExtractDict
+
+Surfaces     : Cylinder.stl
+Output       : Cylinder
+Load options : offset
+Write options: writeObj=yes writeVTK=off
+
+Statistics:
+Triangles    : 156 in 1 region(s)
+Vertices     : 80
+Bounding Box : (-20 -20 -5) (20 20 5)
+
+Constructing feature set from included angle 150
+Selecting edges based purely on geometric tests: no
+
+Initial Feature set:
+    points : 16
+    edges  : 88
+    of which
+        region edges   : 0
+        external edges : 72
+        internal edges : 16
+
+Final Feature set:
+    points : 80
+    of which
+        convex             : 0
+        concave            : 8
+        mixed              : 8
+        non-feature        : 64
+    edges  : 88
+    of which
+        external edges     : 72
+        internal edges     : 16
+        flat edges         : 0
+        open edges         : 0
+        multiply connected : 0
+
+Writing extendedFeatureEdgeMesh to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-heaters-newmesh/constant/extendedFeatureEdgeMesh/Cylinder.extendedFeatureEdgeMesh"
+
+Writing extendedEdgeMesh components to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-heaters-newmesh/constant/extendedFeatureEdgeMesh/Cylinder"
+Writing 0 convex feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-heaters-newmesh/constant/extendedFeatureEdgeMesh/Cylinder_convexFeaturePts.obj"
+Writing 8 concave feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-heaters-newmesh/constant/extendedFeatureEdgeMesh/Cylinder_concaveFeaturePts.obj"
+Writing 8 mixed feature points to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-heaters-newmesh/constant/extendedFeatureEdgeMesh/Cylinder_mixedFeaturePts.obj"
+Writing 8 mixed feature point structure to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-heaters-newmesh/constant/extendedFeatureEdgeMesh/Cylinder_mixedFeaturePtsStructure.obj"
+Writing 72 external edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-heaters-newmesh/constant/extendedFeatureEdgeMesh/Cylinder_externalEdges.obj"
+Writing 16 internal edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-heaters-newmesh/constant/extendedFeatureEdgeMesh/Cylinder_internalEdges.obj"
+Writing 0 flat edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-heaters-newmesh/constant/extendedFeatureEdgeMesh/Cylinder_flatEdges.obj"
+Writing 0 open edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-heaters-newmesh/constant/extendedFeatureEdgeMesh/Cylinder_openEdges.obj"
+Writing 0 multiple edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-heaters-newmesh/constant/extendedFeatureEdgeMesh/Cylinder_multipleEdges.obj"
+Writing 0 region edges to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-heaters-newmesh/constant/extendedFeatureEdgeMesh/Cylinder_regionEdges.obj"
+Writing 88 edge directions to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-heaters-newmesh/constant/extendedFeatureEdgeMesh/Cylinder_edgeDirections.obj"
+
+Writing featureEdgeMesh to "/home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-heaters-newmesh/constant/triSurface/Cylinder.eMesh"
+ExecutionTime = 0 s  ClockTime = 0 s
+
+End
+

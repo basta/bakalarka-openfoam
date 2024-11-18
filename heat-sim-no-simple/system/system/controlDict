@@ -1,0 +1,46 @@
+FoamFile
+{
+    version         2;
+    format          ascii;
+    class           dictionary;
+    location        "system";
+    object          controlDict;
+}
+
+application     snappyHexMesh;
+
+startFrom       latestTime; // startTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         1;
+
+deltaT          1;
+
+writeControl    timeStep;
+
+writeInterval   1;
+
+purgeWrite      0;
+
+writeFormat     ascii;
+
+writePrecision  7;
+
+writeCompression on;
+
+timeFormat      general;
+
+timePrecision   6;
+
+runTimeModifiable yes;
+
+functions
+{
+    // Write cell center coordinates and cell volume as fields by running
+    // postProcess -time '1:'
+    #includeFunc writeCellCentres
+    #includeFunc writeCellVolumes
+}
