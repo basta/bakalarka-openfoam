@@ -30,16 +30,16 @@ solvers
     {
         solver          PBiCGStab;
         preconditioner  DILU;
-        tolerance       1e-08;
+        tolerance       1e-06;
         relTol          0;
     }
-    
+
     UFinal {
         $U;
         relTol          0;
     }
 
-    T 
+    T
     {
         solver          PBiCGStab;
         preconditioner  DILU;
@@ -70,7 +70,7 @@ solvers
        }
        equations
        {
-           U               0.3;
+           U               0.5;
            T               0.5;
        }
    }
@@ -89,9 +89,9 @@ PIMPLE
   pRefCell       100;
   pRefValue      0;
 
-  nOuterCorrectors    2;        // Increase if needed
+  nOuterCorrectors    1;        // Increase if needed
   nCorrectors         2;        // Increase for better pressure-velocity coupling
-  nNonOrthogonalCorrectors 3;   // Increase for highly non-orthogonal meshes
+  nNonOrthogonalCorrectors 1;   // Increase for highly non-orthogonal meshes
 
   residualControl
   {

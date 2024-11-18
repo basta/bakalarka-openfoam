@@ -1,0 +1,53 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM                                       |
+|  \\    /   O peration     | Version:                                       |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                    |
+|    \\/     M anipulation  |                                               |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      thermophysicalProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+thermoType
+{
+    type            heRhoThermo;    // Density-based thermodynamics
+    mixture         pureMixture;    // Single component fluid
+    transport       const;          // Constant transport properties
+    thermo          hConst;         // Constant thermodynamic properties
+    equationOfState rhoConst;  // TODO check this one
+    specie          specie;
+    energy          sensibleEnthalpy;  // Using sensible enthalpy for energy
+}
+
+mixture
+{
+    specie
+    {
+        molWeight       18.015;    // Molecular weight of water [g/mol]
+    }
+
+    thermodynamics
+    {
+        Cp              4195;      // Specific heat capacity at 20°C [J/kg/K]
+        Hf              0;         // Heat of formation set to 0 for single-phase flow
+    }
+
+    transport
+    {
+        mu              0.001;     // Dynamic viscosity at 20°C [kg/m/s]
+        Pr              7.0;       // Prandtl number for water at 20°C
+    }
+
+    equationOfState
+    {
+        rho             998.2;     // Density at 20°C [kg/m³]
+
+    }
+}
