@@ -42,18 +42,21 @@ volVectorField U
     mesh
 );
 
-Info<< "Reading field F\n (external force" << endl;
+Info<< "Creating field F (external force)" << endl;
 volVectorField F(
     IOobject
     (
         "F",
-        runTime.timeName(),
-        mesh,
-        IOobject::MUST_READ,
+        mesh.time().timeName(),
+        U.mesh(),
+        IOobject::NO_READ,
         IOobject::AUTO_WRITE
     ),
-    mesh
+    U
 );
+
+Info<< "Calcualting numerical field" <<endl;
+const volVectorField& centers = F.mesh().C();
 
 #include "createPhi.H"
 
