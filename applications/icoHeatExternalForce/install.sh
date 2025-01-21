@@ -1,1 +1,1 @@
-cp out/icoHeatExternalForce /home/basta/.local/bin
+cp ./out/icoHeatExternalForce /home/basta/.local/bin

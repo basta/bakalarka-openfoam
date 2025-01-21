@@ -23,9 +23,8 @@ boundaryField
 {
     // WALLS
     fixedWalls {
-        // type noSlip;
-        type fixedValue;
-        value uniform (1 0 0);
+        type noSlip;
+        // value uniform (1 0 0);
     }
 
     frontAndBack {

@@ -1,0 +1,10 @@
+name = "MHD_control_cooling"
+uuid = "ddf71602-d36e-4e81-b97a-4b0a89849dab"
+authors = ["basta <jsembasta@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Pluto = "c3e4b0f8-55cb-11ea-2926-15256bba5781"
+
+[compat]
+Pluto = "0.20.4"
