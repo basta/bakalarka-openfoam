@@ -16,7 +16,7 @@ FoamFile
 
 dimensions      [0 0 0 1 0 0 0];
 
-internalField   uniform 50;
+internalField   uniform 0;
 
 boundaryField
 {
@@ -32,8 +32,8 @@ boundaryField
 
     // HEATER
     hotEnd {
-        type fixedValue;
-        value uniform 100;
+        type fixedGradient;
+        gradient uniform 1000;
     }
 
     // COOLER {

@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../2d-example"
+		},
+		{
+			"path": "../applications"
+		}
+	],
+	"settings": {}
+}

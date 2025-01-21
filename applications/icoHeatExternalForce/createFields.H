@@ -48,11 +48,11 @@ volVectorField F(
     (
         "F",
         mesh.time().timeName(),
-        U.mesh(),
-        IOobject::NO_READ,
+        mesh,
+        IOobject::MUST_READ,
         IOobject::AUTO_WRITE
     ),
-    U
+    mesh
 );
 
 Info<< "Calcualting numerical field" <<endl;
