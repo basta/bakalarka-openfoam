@@ -4,7 +4,14 @@ authors = ["basta <jsembasta@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+BlackBoxOptim = "a134a8b2-14d6-55f6-9291-3336d3ab0209"
+Debugger = "31a5f54b-26ea-5ae9-a837-f05ce5417438"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+OteraEngine = "b2d7f28f-acd6-4007-8b26-bc27716e5513"
+PCL_jll = "19da7e43-5f78-5205-a494-8c2c52b4cca1"
 Pluto = "c3e4b0f8-55cb-11ea-2926-15256bba5781"
+PointClouds = "3cc211ed-1f43-4d33-a894-629186066e97"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 
 [compat]
 Pluto = "0.20.4"
