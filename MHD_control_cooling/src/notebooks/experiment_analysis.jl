@@ -11,8 +11,9 @@ using JSON, WGLMakie
 begin
 	baseline = JSON.parsefile("../../experiments/baseline.json")
 	rot50 = JSON.parsefile("../../experiments/rot50.json")
-	quartal = JSON.parsefile("../../experiments/quartal.json")
-end
+	quartal = JSON.parsefile("../../experiments/quartal.json")              
+	magman = JSON.parsefile("/home/basta/Projects/bakalarka-openfoam/MHD_control_cooling/experiments/magman1/blackbox_76.40919494628906_2025-01-28_11-12-19.json")
+end 
 
 # ╔═╡ c639f678-53a0-4b16-b486-2e52920f7ada
 typeof([1,2,3])
@@ -24,6 +25,7 @@ begin
 	lines!(vcat([0], baseline["criteria"]))
 	lines!(vcat([0], rot50["criteria"]))
 	lines!(vcat([0], quartal["criteria"]))
+	lines!(vcat([0], magman["criteria"]))
 	fig
 end
 
