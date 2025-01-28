@@ -81,7 +81,7 @@ end
 data["coords"].parent'[:, 1:1000:end]
 
 # ╔═╡ c92ff003-c95c-4d75-8cb2-05acdc3687b1
-@bind Z Slider(-0.05 : 0.011 : 0.05, show_value=true, default=-0.02)
+@bind Z Slider(-0.05 : 0.011 : 0.05, show_value=true, default=-0.05)
 
 # ╔═╡ 0d851cfc-cca6-4abc-b2e9-2b74bd356ae8
 begin 
@@ -209,7 +209,7 @@ begin
 	fF = Figure(size = (800, 800))
 	Axis(fF[1, 1], backgroundcolor = "black")
 	strengthF = log.(10, norm.(vecsF))
-	arrows(posesF, vecsF, arrowcolor = strengthF, arrowsize = 10, lengthscale = 0.0001, linecolor = strengthF)
+	arrows(posesF, vecsF, arrowcolor = strengthF, arrowsize = 10, lengthscale = 0.001, linecolor = strengthF)
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
