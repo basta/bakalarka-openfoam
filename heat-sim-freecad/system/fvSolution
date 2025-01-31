@@ -16,14 +16,29 @@ FoamFile
 
 solvers
 {
+    // p_rgh
+    // {
+    //     solver          GAMG;  // Changed from PCG        // preconditioner  DIC;
+    //     smoother       GaussSeidel;  // Moved smoother here
+    //     tolerance       1e-05;
+    //     relTol          0.2;
+    //     pRefCell        0;
+    //     pRefValue       0;
+    // }
+
     p_rgh
     {
-        solver          PCG;
-        preconditioner  DIC;
+        solver          GAMG;
         tolerance       1e-06;
-        relTol          0.05;
-        pRefCell        0;
-        pRefValue       0;
+        relTol         0.01;
+        smoother       GaussSeidel;
+        nPreSweeps     0;
+        nPostSweeps    1;
+        nFinestSweeps  2;
+        cacheAgglomeration true;
+        nCellsInCoarsestLevel 10;
+        agglomerator    faceAreaPair;
+        mergeLevels     1;
     }
 
     U
@@ -43,7 +58,6 @@ solvers
     {
         solver          PBiCGStab;
         preconditioner  DILU;
-        smoother        symGaussSeidel;
         tolerance       1e-06;
         relTol          0.05;
     }
@@ -66,7 +80,8 @@ solvers
    {
        fields
        {
-           p_rgh           0.7;      // Try reducing this
+           p_rgh           0.5;  
+           T               0.7;
        }
        equations
        {
@@ -97,7 +112,7 @@ PIMPLE
   {
         p_rgh
         {
-            tolerance   1e-4; //todo maybe adjust
+            tolerance   1e-5; //todo maybe adjust
             relTol     0;
         }
         U
