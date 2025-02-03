@@ -9,9 +9,14 @@ function lineToVec(line)
 end
 
 function normalize_cells(cells)
-    # Get min and max for each dimension separately
-    min_coords = minimum.(zip(cells...))  # Get minimum of each dimension
-    max_coords = maximum.(zip(cells...))  # Get maximum of each dimension
+
+    isempty(cells) && error("No cells provided")
+
+    D = length(first(cells))
+    
+    # Compute min and max for each dimension using generators to avoid large tuples
+    min_coords = [minimum(cell[d] for cell in cells) for d in 1:D]
+    max_coords = [maximum(cell[d] for cell in cells) for d in 1:D]
     
     # Calculate range for each dimension
     ranges = max_coords .- min_coords

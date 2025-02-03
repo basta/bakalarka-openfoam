@@ -92,6 +92,8 @@ int main(int argc, char *argv[])
 
     Info<< "\nStarting time loop\n" << endl;
 
+    bool printedFixedFlow = false;
+
     while (runTime.run())
     {
         #include "readDyMControls.H"
@@ -102,50 +104,62 @@ int main(int argc, char *argv[])
 
         Info<< "Time = " << runTime.timeName() << nl << endl;
 
+        bool fixedFlow = runTime.value() > 1;
+        if (fixedFlow && !printedFixedFlow)
+        {
+            Info<< "Fixed flow from now on\n" << endl;
+            printedFixedFlow = true;
+        }
+
         // --- Pressure-velocity PIMPLE corrector loop
         while (pimple.loop())
         {
-            if (pimple.firstIter() || moveMeshOuterCorrectors)
-            {
-                // Do any mesh changes
-                mesh.controlledUpdate();
-
-                if (mesh.changing())
+            if (!fixedFlow){
+                if (pimple.firstIter() || moveMeshOuterCorrectors)
                 {
-                    MRF.update();
+                    // Do any mesh changes
+                    mesh.controlledUpdate();
 
-                    if (correctPhi)
+                    if (mesh.changing())
                     {
-                        // Calculate absolute flux
-                        // from the mapped surface velocity
-                        phi = mesh.Sf() & Uf();
+                        MRF.update();
 
-                        #include "correctPhi.H"
+                        if (correctPhi)
+                        {
+                            // Calculate absolute flux
+                            // from the mapped surface velocity
+                            phi = mesh.Sf() & Uf();
 
-                        // Make the flux relative to the mesh motion
-                        fvc::makeRelative(phi, U);
-                    }
+                            #include "correctPhi.H"
 
-                    if (checkMeshCourantNo)
-                    {
-                        #include "meshCourantNo.H"
+                            // Make the flux relative to the mesh motion
+                            fvc::makeRelative(phi, U);
+                        }
+
+                        if (checkMeshCourantNo)
+                        {
+                            #include "meshCourantNo.H"
+                        }
                     }
                 }
             }
 
             #include "UEqn.H"
-            #include "TEqn.H"
 
-            // --- Pressure corrector loop
-            while (pimple.correct())
-            {
-                #include "pEqn.H"
-            }
+            if (!fixedFlow) {
+                #include "TEqn.H"
 
-            if (pimple.turbCorr())
-            {
-                laminarTransport.correct();
-                turbulence->correct();
+                // --- Pressure corrector loop
+                while (pimple.correct())
+                {
+                    #include "pEqn.H"
+                }
+
+                if (pimple.turbCorr())
+                {
+                    laminarTransport.correct();
+                    turbulence->correct();
+                }
             }
         }
 

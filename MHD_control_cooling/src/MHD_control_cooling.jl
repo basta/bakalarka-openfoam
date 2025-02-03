@@ -4,6 +4,10 @@ logger = ConsoleLogger(stderr, Logging.Info)
 
 global_logger(logger)
 
+CASE_DIR = "../heat-sim-H/"
+
+
+
 
 if !endswith(pwd(), "MHD_control_cooling")
     cd("/home/basta/Projects/bakalarka-openfoam/MHD_control_cooling")
@@ -16,6 +20,8 @@ includet("./openfoam/real_field.jl")
 using LinearAlgebra, BlackBoxOptim, Dates
 
 module MHD_control_cooling
+CASE_DIR = "../heat-sim-H/"
+
 using Revise, JSON, LinearAlgebra
 
 include("./openfoam/field_utils.jl")
@@ -33,17 +39,17 @@ end
 
 function run_sim(F::Function)
     @info "Running simulation"
-    centers_field_path = "../2d-example/0/C"
+    centers_field_path = "$(CASE_DIR)0/C"
     field_template_path = "./data/fieldsTemplate.mustache"
     field_string = create_force_field_string(F, centers_field_path, field_template_path, true)
-    set_field_at_time("../2d-example", "0", field_string, "F")
-    run_case("../2d-example", "./icoHeatExternalForce")
+    set_field_at_time("$(CASE_DIR)", "0", field_string, "F")
+    run_case("$(CASE_DIR)", "./icoHeatExternalForce")
 end
 
 function get_criterium_in_time(case_path::String)
     criteria = [];
     slice_idxs = get_slice_xmin(read_field_vector(joinpath(case_path, "0/C")));
-    for i in 1:1000
+    for i in 5:5:1000
         try
             time_name = string(i)
             time_path = joinpath(case_path, time_name)
@@ -64,12 +70,12 @@ function log_experiment_json(dir, name, criteria, desc)
 end
 
 function main()
-    centers_field_path = "../../2d-example/0/C"
+    centers_field_path = "../$(CASE_DIR)0/C"
     field_template_path = "../data/fieldsTemplate.mustache"
     F = x -> [x[1], x[2], x[3]]
     field_string = create_force_field_string(F, centers_field_path, field_template_path)
-    set_field_at_time("../../2d-example", "0", field_string, "F")
-    run_case("../../2d-example", "./icoHeatExternalForce")
+    set_field_at_time("../$(CASE_DIR)", "0", field_string, "F")
+    run_case("../$(CASE_DIR)", "./icoHeatExternalForce")
     println(field_string)
 end
 
@@ -118,7 +124,7 @@ ex_magmen_force = real_force_generator([10.0, 10.0, -10.0, -10.0, 10.0, 10.0, -9
 
 function main()
     MHD_control_cooling.run_sim(ex_magmen_force)
-    criteria = MHD_control_cooling.get_criterium_in_time("../2d-example")
+    criteria = MHD_control_cooling.get_criterium_in_time("$(CASE_DIR)")
     MHD_control_cooling.log_experiment_json("./experiments", "quartal", criteria, "quartal")
 end
 
@@ -127,12 +133,11 @@ function blackbox(θ)::Float64
     # MHD_control_cooling.run_sim(x -> vcat(quartal_force(x), [0.0]).*50)
     magmen_force = real_force_generator(θ)
     MHD_control_cooling.run_sim(x -> magmen_force(x))
-
-    criteria = MHD_control_cooling.get_criterium_in_time("../2d-example")
+    criteria = MHD_control_cooling.get_criterium_in_time("$(CASE_DIR)")
     timestamp = Dates.format(Dates.now(), "yyyy-mm-dd_HH-MM-SS")
-    name = "blackbox_$(criteria[end])_$(timestamp)"
+    name = "magman_$(criteria[end])_$(timestamp)"
     desc = string(θ)
-    MHD_control_cooling.log_experiment_json("./experiments/magman1", name, criteria, desc)
+    MHD_control_cooling.log_experiment_json("./experiments/magman1-H", name, criteria, desc)
     return criteria[end]
 end
 
@@ -198,8 +203,8 @@ function visu_elmagdata(elMagData::ElMagneticData)
     fig = Figure()
 end
 
-# optimize()
-main()
+optimize()
+# main()
 
 # visu_magmen_force = real_force_generator([1,0,0,0,1,1,1,1], true)
 
