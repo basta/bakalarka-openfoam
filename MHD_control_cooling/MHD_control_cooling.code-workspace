@@ -10,5 +10,11 @@
 			"path": "../applications"
 		}
 	],
+<<<<<<< HEAD
 	"settings": {}
+=======
+	"settings": {
+		"julia.environmentPath": "/home/basta/Documents/bakalarka/bakalarka-openfoam/MHD_control_cooling"
+	}
+>>>>>>> ced54dc2b07393c77d6672f86018f87b3a82825e
 }

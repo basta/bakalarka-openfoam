@@ -1,13 +1,20 @@
 {
   volScalarField rAU("rAU", 1.0 / UEqn.A());
   surfaceScalarField rAUf("rAUf", fvc::interpolate(rAU));
-  volVectorField HbyA(constrainHbyA(rAU * UEqn.H(), U, p_rgh));
+
+  // Add F to HbyA calculation (ensure it is part of the velocity predictor)
+  volVectorField HbyA(constrainHbyA(rAU * (UEqn.H() + F), U, p_rgh));  // <-- Add F here
 
   surfaceScalarField phig(-rAUf * ghf * fvc::snGrad(rhok) * mesh.magSf());
 
+  // Compute flux contribution from F
+  surfaceScalarField phiF("phiF", fvc::flux(rAU * F));  // <-- Flux due to F
+
+  // Add phiF to phiHbyA
   surfaceScalarField phiHbyA(
       "phiHbyA",
-      fvc::flux(HbyA) + MRF.zeroFilter(rAUf * fvc::ddtCorr(U, phi)) + phig);
+      fvc::flux(HbyA) + MRF.zeroFilter(rAUf * fvc::ddtCorr(U, phi)) + phig + phiF  // <-- Include phiF
+  );
 
   MRF.makeRelative(phiHbyA);
 
