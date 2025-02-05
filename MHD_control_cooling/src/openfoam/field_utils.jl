@@ -173,3 +173,29 @@ function run_case(case_path::String, solver_name::String, verbose = false)
     end    
 end
 
+
+function transform_coordinate(
+    source_cube::NamedTuple{(:x, :y, :z), Tuple{Tuple{Float64, Float64}, Tuple{Float64, Float64}, Tuple{Float64, Float64}}},
+    target_cube::NamedTuple{(:x, :y, :z), Tuple{Tuple{Float64, Float64}, Tuple{Float64, Float64}, Tuple{Float64, Float64}}},
+    point::AbstractArray{Float64, 1}
+)::Vector{Float64}
+    # Extract source cube bounds
+    x1_min, x1_max = source_cube.x
+    y1_min, y1_max = source_cube.y
+    z1_min, z1_max = source_cube.z
+
+    # Extract target cube bounds
+    x2_min, x2_max = target_cube.x
+    y2_min, y2_max = target_cube.y
+    z2_min, z2_max = target_cube.z
+
+    # Extract point coordinates
+    x, y, z = point
+
+    # Transform each coordinate
+    new_x = x2_min + (x - x1_min) * (x2_max - x2_min) / (x1_max - x1_min)
+    new_y = y2_min + (y - y1_min) * (y2_max - y2_min) / (y1_max - y1_min)
+    new_z = z2_min + (z - z1_min) * (z2_max - z2_min) / (z1_max - z1_min)
+
+    return [new_x, new_y, new_z]
+end

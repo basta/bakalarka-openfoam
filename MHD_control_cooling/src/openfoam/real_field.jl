@@ -1,5 +1,6 @@
-using NearestNeighbors, JLD, LinearAlgebra, Logging, PrettyTables, CairoMakie
+using NearestNeighbors, JLD, LinearAlgebra, Logging, PrettyTables, CairoMakie, CSV, DataFrames
 
+include("./field_utils.jl")
 
 mutable struct ElMagneticInput
     poses::Array{Float64, 2}
@@ -94,7 +95,6 @@ function get_force_at_point(elMagData::ElMagneticData, point::Array{Float64, 1},
                 continue
             end
             i+=1
-            F[3] = 0
             Fs[:, i] = F
         end
     end
@@ -102,7 +102,6 @@ function get_force_at_point(elMagData::ElMagneticData, point::Array{Float64, 1},
     # formatters = (v, i, j) -> round(v, digits=2),
     # tf = tf_borderless
     # )
-    F[3] = 0
     if !per_partes_out
         return F
     else
@@ -116,4 +115,15 @@ function norm2magman(vec::AbstractArray{Float64, 1})
     vec[2] = vec[2] / 10 - 0.05
     vec[3] = 0.005
     return vec
+end
+
+function H2magman(vec::AbstractArray{Float64, 1})
+    source_cube = (x=(0.05, 0.15), y=(0.0, 0.1), z=(0.0, 1.0))
+    target_cube = (x=(-0.05, 0.05), y=(-0.05, 0.05), z=(0.0, 0.1))
+    return transform_coordinate(source_cube, target_cube, vec)
+end
+
+function get_criteria_cell_indices(csv_path::String)::Vector{Int}
+    df = CSV.read(csv_path, DataFrame)
+    return df.vtkOriginalPointIds
 end
