@@ -31,13 +31,12 @@ boundaryField
 
     // INLET
     patch_2_0 {
-        type fixedValue;
-        value uniform (0 0.1 0);
+        type noSlip;
     }
 
     // OUTLET
     patch_3_0 {
-        type zeroGradient;
+        type noSlip;
     }
 
     // HEATER

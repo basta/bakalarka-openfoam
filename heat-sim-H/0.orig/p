@@ -10,11 +10,11 @@ FoamFile
     version     2.0;
     format      ascii;
     class       volScalarField;
-    object      T;
+    object      p;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-dimensions      [0 0 0 1 0 0 0];
+dimensions      [0 2 -2 0 0 0 0];
 
 internalField   uniform 0;
 
@@ -35,19 +35,19 @@ boundaryField
 
     // OUTLET
     patch_3_0 {
-        type zeroGradient;
+        type fixedValue;
+        value uniform 0;
     }
 
     // HEATER
     patch_4_0 {
-        type fixedGradient;
-        gradient uniform 1000;
+        type zeroGradient;
+
     }
 
     // COOLER {
     patch_5_0 {
-        type fixedValue;
-        value uniform 0;
+        type zeroGradient;
     }
 }
 
