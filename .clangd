@@ -1,0 +1,8 @@
+CompileFlags:
+  Add: [
+    "-I/home/basta/.cahe/openfoamInclude",
+    "-I./lnInclude",
+    "-std=c++14",
+    "-m64",
+    "-fPIC"
+  ]
