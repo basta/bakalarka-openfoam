@@ -4,6 +4,6 @@
 // see the documentation: https://zed.dev/docs/configuring-zed#settings-files
 {
   "file_types": {
-    "C++": ["*.H", "*/system/*", "*/constant/*", "*/0/*"]
+    "C++": ["*.H", "*.C", "*/system/*", "*/constant/*", "*/0/*"]
   }
 }
