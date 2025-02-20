@@ -1,0 +1,119 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2406                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      fvSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+solvers
+{
+    p_rgh
+    {
+        solver          PCG;
+        preconditioner  DIC;
+        tolerance       1e-06;
+        relTol          0.05;
+        pRefCell        0;
+        pRefValue       0;
+    }
+
+    U
+    {
+        solver          PBiCGStab;
+        preconditioner  DILU;
+        tolerance       1e-06;
+        relTol          0;
+    }
+
+    UFinal {
+        $U;
+        relTol          0;
+    }
+
+    T
+    {
+        solver          PBiCGStab;
+        preconditioner  DILU;
+        smoother        symGaussSeidel;
+        tolerance       1e-06;
+        relTol          0.05;
+    }
+
+    TFinal { //TODO ?
+        $T;
+        relTol          0;
+    }
+
+
+
+    p_rghFinal {
+       solver          PCG;
+       preconditioner  DIC;
+       tolerance       1e-06;
+       relTol          0.01;
+   }
+
+   relaxationFactors
+   {
+       fields
+       {
+           p_rgh           0.7;      // Try reducing this
+       }
+       equations
+       {
+           U               0.5;
+           T               0.5;
+       }
+   }
+}
+
+PISO
+{
+    nCorrectors     2;
+    nNonOrthogonalCorrectors 0;
+    pRefCell        0;
+    pRefValue       0;
+}
+
+PIMPLE
+{
+  pRefCell       100;
+  pRefValue      0;
+
+  nOuterCorrectors    1;        // Increase if needed
+  nCorrectors         2;        // Increase for better pressure-velocity coupling
+  nNonOrthogonalCorrectors 1;   // Increase for highly non-orthogonal meshes
+
+  residualControl
+  {
+        p_rgh
+        {
+            tolerance   1e-4; //todo maybe adjust
+            relTol     0;
+        }
+        U
+        {
+            tolerance   1e-4;
+            relTol     0;
+        }
+        T
+        {
+            tolerance   1e-4;
+            relTol     0;
+        }
+  }
+
+
+}
+
+
+// ************************************************************************* //

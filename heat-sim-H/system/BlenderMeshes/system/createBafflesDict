@@ -1,0 +1,17 @@
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      createBafflesDict;
+}
+
+// Exported by SnappyHexMesh GUI add-on for Blender v1.8
+// Source file: /home/basta/Documents/bakalarka/bakalarka-openfoam/heat-sim-heaters/model.blend
+// Export date: 2024-10-23 23:31:51.561794
+
+internalFacesOnly true;
+
+baffles
+{
+
+}
