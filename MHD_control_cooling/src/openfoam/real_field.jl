@@ -14,13 +14,16 @@ mutable struct ElMagneticData
 end
 
 function interpolate_tree(nn_tree, vecs, points)
+    if ndims(vecs) == 1
+        vecs = reshape(vecs, 1, :)
+    end
 	idxssE, distssE = knn(nn_tree, points[:, :], 5)
 	vecsE = []
 	for (i, idxs) in enumerate(idxssE)
 			dists = distssE[i]
 			pos = points[:, i]
 			i_vecs = vecs[:, idxs]
-			vec3 = zeros(3)
+			vec3 = zeros(size(i_vecs)[1])
 			dist_sum = sum(dists)
 			w_sum = 0
 			for (dist, i_vec) in zip(dists, eachcol(i_vecs))
@@ -36,6 +39,7 @@ function interpolate_tree(nn_tree, vecs, points)
 		end
 	return stack(vecsE)
 end
+
 
 function create_elmaginput(jld_path::String)
     data = load(jld_path)
@@ -126,4 +130,9 @@ end
 function get_criteria_cell_indices(csv_path::String)::Vector{Int}
     df = CSV.read(csv_path, DataFrame)
     return df.vtkOriginalPointIds
+end
+
+function sample_cells_scalar(cellsField::AbstractArray{Float64, 2}, cell_values::AbstractArray{Float64, 1}, sample_points::AbstractArray{Float64, 2})
+    nn_tree = KDTree(cellsField)
+    return interpolate_tree(nn_tree, cell_values, sample_points)
 end
