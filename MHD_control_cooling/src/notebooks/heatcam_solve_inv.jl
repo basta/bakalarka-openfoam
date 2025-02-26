@@ -17,10 +17,7 @@ macro bind(def, element)
 end
 
 # ╔═╡ 33877cce-873b-4c97-b87a-242a66abbb66
-using DifferenceEquations, WGLMakie, LinearAlgebra, Colors, JLD, PlutoUI
-
-# ╔═╡ ce1e20e6-756b-40ad-9e64-7a69f9acda92
-using EquivariantOperators
+using DifferenceEquations, WGLMakie, LinearAlgebra, Colors, JLD, PlutoUI, EquivariantOperators
 
 # ╔═╡ 5955b343-5af1-43a2-90c0-0ae17ea9a41f
 
@@ -32,33 +29,46 @@ begin
 	D = 0.1
 	# T = rand(N,M)
 	T = zeros(N,M)
-	T = [(i/10)^2 for i in 1:N, j in 1:M]
-	T = JLD.load("/tmp/T_mat.jld")["T"]
+	# T = [(j/10)^3 for i in 1:N, j in 1:M]
+	# T = JLD.load("/tmp/T_mat.jld")["T"]
+	T = JLD.load("/tmp/nosample_T.jld")["T"]
 	
+
+	dx = .1/20
+	dy = .1/20
+	▽ = Del([dx 0; 0 dy])  # Cell size matrix
+	Δ² = Lap((dx, dy); pad = :same, border = :smooth)
+	cam_ΔT = 0.000001
+    
 end;
+
+# ╔═╡ c394313f-2e65-4287-a481-1b1d3f4216d9
+function simulate_thermal_cam(mat, ΔT)
+	return round.(mat ./ ΔT).*ΔT
+end
 
 # ╔═╡ d05cea9b-a4e0-49ee-80e5-407e19c7d8b5
 let
-	fig = Figure(resolution=(500, 500))
+	fig = Figure(resolution=(600, 300))
 	ax = Axis(fig[1,1], title="T field")
 	heatmap!(ax, T)
+	ax = Axis(fig[1,2], title="T field")
+	heatmap!(ax, simulate_thermal_cam(T, cam_ΔT))
 	fig
 end
+
+# ╔═╡ 89aa2199-75d6-44e4-83f8-3bd59c7a0e88
+T_real = simulate_thermal_cam(T, cam_ΔT)
 
 # ╔═╡ 59981483-90af-4586-b0f1-5a91e511bf45
 ## Calculate b vector
 b, T_lap = let
 	b = zeros(N*M*2)
-	T_lap = zeros(N,M)
+	T_lap = real(Δ²(T_real))
 	idx = 1 # skip first
 	for i in 1:N
 		for j in 1:M
-			if j == 1 || i == 1 || j == N || i == M
-				b[idx] = 0 #TODO needs to be fixed
-			else
-				b[idx] = 1*(T[i+1, j] + T[i-1, j] + T[i, j+1] + T[i, j-1] - 4*T[i,j])
-				T_lap[i, j] = 1*(T[i+1, j] + T[i-1, j] + T[i, j+1] + T[i, j-1] - 4*T[i,j])
-			end
+			b[idx] = T_lap[i,j]
 			idx += 1
 		end
 	end
@@ -116,30 +126,15 @@ end
 
 # ╔═╡ e0e8aa4f-4f05-4afe-86b3-08990d1a1366
 ## Calculate A matrix
-A, ico_mat, Dux, Duy, T_gradx = let
+A, ico_mat, Dux, Duy = let
 	diag_ux = zeros(N*M)
 	diag_uy = zeros(N*M)
 	idx = 1
-	T_gradx = zeros(N,M)
+	T_grad = real(▽(T_real))
 	for i in 1:N
 		for j in 1:M
-			if (i == 1)
-				diag_ux[idx] = T[i+1, j] - T[i, j]
-			elseif i == N
-				diag_ux[idx] = T[i, j] - T[i-1, j]	
-			else
-				diag_ux[idx] = T[i+1, j] - T[i-1, j]
-			end
-
-			if j == 1 
-				diag_uy[idx] = T[i, j+1] - T[i, j]
-			elseif j == M
-				diag_uy[idx] = T[i, j] - T[i, j-1]
-			else
-				diag_uy[idx] = T[i, j+1] - T[i, j-1]
-			end
-			T_gradx[i, j] = diag_uy[idx]
-			
+			diag_ux[idx] = T_grad[i,j][1]
+			diag_uy[idx] = T_grad[i,j][2]			
 			idx += 1
        end
 	end
@@ -148,13 +143,13 @@ A, ico_mat, Dux, Duy, T_gradx = let
 		for j in 1:M
 			row = zeros(N*M*2)
 			if i > 1
-				row[ij_to_idx(i-1, j, N, M, :x)] = 1
+				row[ij_to_idx(i-1, j, N, M, :x)] = -1
 			end
 			if i < N
 				row[ij_to_idx(i+1, j, N, M, :x)] = 1
 			end	
 			if j > 1
-				row[ij_to_idx(i, j-1, N, M, :y)] = 1
+				row[ij_to_idx(i, j-1, N, M, :y)] = -1
 			end
 			if j < M
 				row[ij_to_idx(i, j+1, N, M, :y)] = 1
@@ -168,18 +163,21 @@ A, ico_mat, Dux, Duy, T_gradx = let
 		Dux Duy;
 		ico_mat
 	]
-	A, ico_mat, Dux, Duy, T_gradx
+	A, ico_mat, Dux, Duy
 end;
+
+# ╔═╡ dac1b492-2831-4b53-a9d3-4db02b99ed48
+
 
 # ╔═╡ 35e468e9-15f2-4860-ac72-66684c3005bf
 begin
 	fig = Figure()
 	ax = Axis(fig[1,1], title="Dux")
-	spy!(Dux)
+	spy!(Dux')
 	ax = Axis(fig[1,2], title="Duy")
-	spy!(Duy)
+	spy!(Duy')
 	ax = Axis(fig[2:3,1:2], title="ico_mat")
-	spy!(ico_mat)
+	spy!(A)
 	fig
 end
 
@@ -192,7 +190,7 @@ begin
 end
 
 # ╔═╡ 07f71376-a7a4-4e91-913c-9d8d92cb8663
-@bind lgth Slider(0.01:0.01:1, show_value=true)
+@bind lgth Slider(0.001:0.001:0.01, show_value=true)
 
 # ╔═╡ 17012da8-2804-4e6e-bb5e-abae29b40dff
 let
@@ -210,7 +208,6 @@ let
 		j = idx_to_ij(idx, N, M, :x)[2]
 		push!(X, i)
 		push!(Y, j)
-		println("$idx, $i, $j")
 		U_field[i, j] = sqrt(ux_res[idx]^2 + uy_res[idx]^2)
 		U_field[i, j] = ux_res[idx]
 		Uy_field[i, j] = uy_res[idx]
@@ -233,29 +230,42 @@ let
 	fig
 end
 
+# ╔═╡ f63929b4-6ce7-44c3-a00d-131fb57d12d4
+@bind ΔT2 Slider(0:0.01:3, show_value=true)
+
 # ╔═╡ 0b6985c2-cc3f-4888-9352-97b109f4e5f0
 let
-	dx = 1
-	dy = 1
-	▽ = Del([dx 0; 0 dy])  # Cell size matrix
 	Δ² = Lap((dx, dy); pad = :same, border = :smooth)
     
     # Compute gradient components
     grad_T = real(▽(T))[:,:]  # x-component
 	lap_T = real(Δ²(T))[:,:]
+
+	T_real = simulate_thermal_cam(T, ΔT2)
+	grad_T_real = real(▽(T_real))[:,:]
+	lap_T_real = real(Δ²(T_real))[:,:]
 	grad_x = zeros(N,M)
 	grad_y = zeros(N,M)
-	fig = Figure(resolution=(500, 1000))
+	grad_x_real = zeros(N,M)
+	grad_y_real = zeros(N,M)
+	fig = Figure(resolution=(680, 680))
 	ax = Axis(fig[1,1])
 	for i in 1:N
 		for j in 1:M
 			grad_x[i,j] = grad_T[i,j][1]
 			grad_y[i,j] = grad_T[i,j][2]
+			grad_x_real[i,j] = grad_T_real[i,j][1]
+			grad_y_real[i,j] = grad_T_real[i,j][2]
+			
 		end
 	end
-	heatmap!(ax, lap_T)
+	heatmap!(ax, grad_x)
 	ax = Axis(fig[2,1])
-	heatmap!(ax, T_lap)
+	heatmap!(ax, lap_T)
+	ax = Axis(fig[1,2])
+	heatmap!(ax, grad_x_real)
+	ax = Axis(fig[2,2])
+	heatmap!(ax, lap_T_real)
 	fig
 end
 
@@ -2505,16 +2515,19 @@ version = "3.6.0+0"
 # ╠═33877cce-873b-4c97-b87a-242a66abbb66
 # ╠═5955b343-5af1-43a2-90c0-0ae17ea9a41f
 # ╠═b8b450bb-0718-4868-964e-35b56d594c99
+# ╠═c394313f-2e65-4287-a481-1b1d3f4216d9
 # ╠═d05cea9b-a4e0-49ee-80e5-407e19c7d8b5
+# ╠═89aa2199-75d6-44e4-83f8-3bd59c7a0e88
 # ╠═59981483-90af-4586-b0f1-5a91e511bf45
 # ╠═72128444-e1ac-4853-b902-efe8131738c1
 # ╠═fa395f8a-0938-4e7c-a19a-1a26a7612d8f
 # ╠═e0e8aa4f-4f05-4afe-86b3-08990d1a1366
+# ╠═dac1b492-2831-4b53-a9d3-4db02b99ed48
 # ╠═35e468e9-15f2-4860-ac72-66684c3005bf
 # ╠═8dd51efd-e648-4935-ad9a-2e8049192412
 # ╠═07f71376-a7a4-4e91-913c-9d8d92cb8663
 # ╠═17012da8-2804-4e6e-bb5e-abae29b40dff
-# ╠═ce1e20e6-756b-40ad-9e64-7a69f9acda92
+# ╠═f63929b4-6ce7-44c3-a00d-131fb57d12d4
 # ╠═0b6985c2-cc3f-4888-9352-97b109f4e5f0
 # ╠═ca06947c-d6ff-4c54-9ee0-8e3990a51205
 # ╟─00000000-0000-0000-0000-000000000001

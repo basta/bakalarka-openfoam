@@ -28,8 +28,11 @@ begin
     using MHD_control_cooling 
 end
 
+# ╔═╡ 6a881b49-3e19-4db8-88d2-c156d77131c4
+SIZE = 20
+
 # ╔═╡ 1141d878-98c0-484e-9b70-d0cf1a0243b2
-case = "2d-example"
+case = "cases_bckup/2d-example-bb"
 
 # ╔═╡ f6486da4-f4ef-4fb6-bbbd-96e13d14d14f
 cells = MHD_control_cooling.read_field_vector(
@@ -94,8 +97,8 @@ end
 begin
 	samples_T = []
 	z = 0.005
-	for x in 0:(0.1/20):0.1
-		for y in 0:(0.1/20):0.1
+	for x in 0:(0.1/SIZE):0.1
+		for y in 0:(0.1/SIZE):0.1
 			push!(samples_T, [x;y;z])
 		end
 	end
@@ -109,7 +112,7 @@ begin
 end;
 
 # ╔═╡ 62c120e3-1569-4369-aae3-a1d12a8d4fbb
-heat_mat = poses_samples_to_mat(samples_mat, sampled_temps5, 0, 0.1/20 ,0.1, 0, 0.1/20, 0.1);
+heat_mat = poses_samples_to_mat(samples_mat, sampled_temps5, 0, 0.1/SIZE ,0.1, 0, 0.1/SIZE, 0.1);
 
 # ╔═╡ 37649575-2f96-40a9-8027-281ef3040dc0
 let
@@ -121,7 +124,7 @@ let
 		temps = MHD_control_cooling.read_field_scalar(
 			joinpath(PKG_PATH, "../$(case)/$(t)/T"))
 		sampled_temps = MHD_control_cooling.sample_cells_scalar(cells, temps, 		samples_mat)
-		heat_mat = poses_samples_to_mat(samples_mat, sampled_temps, 0, 0.1/20 ,0.1, 0, 0.1/20, 0.1);
+		heat_mat = poses_samples_to_mat(samples_mat, sampled_temps, 0, 0.1/SIZE ,0.1, 0, 0.1/SIZE, 0.1);
 		grad_x, grad_y = matrix_gradient(heat_mat)
 
 		begin
@@ -138,6 +141,33 @@ let
 		end
 	end
 	JLD.save("/tmp/T_mat.jld", "T", heat_mat)	
+end
+
+# ╔═╡ ea4bdce7-da42-4904-b12b-fd2a10104de3
+let
+	function extract_top_layer(poses, values)
+		top_z = maximum(map(x->x[3], eachcol(poses)))
+		idxs = []
+		for i in 1:size(poses,2)
+			if poses[3,i] ≈ top_z
+				push!(idxs, i)
+			end
+		end
+		return poses[:, idxs], values[idxs]
+	end
+	temps = MHD_control_cooling.read_field_scalar(
+		joinpath(PKG_PATH, "../$(case)/$(50)/T"))
+	top_poses, top_temps = extract_top_layer(cells, temps)
+	top_idx = Int.(round.(top_poses*(1/0.005).+0.5))
+	heat_mat = zeros(SIZE, SIZE)
+	for ((i, j, _), temp) in zip(eachcol(top_idx), top_temps)
+		heat_mat[i,j] = temp
+	end
+	JLD.save("/tmp/nosample_T.jld", "T", heat_mat)	
+	fig = Figure()
+	ax = Axis(fig[1,1])
+	heatmap!(ax, heat_mat)
+	fig
 end
 
 # ╔═╡ 7b05973c-99af-46c0-8b5f-5a0dfaeadeda
@@ -165,6 +195,7 @@ end
 # ╠═cdcd3247-c1c8-4227-b104-20d4885edb17
 # ╠═94bee77a-44ec-4b99-bed0-9261253d40ca
 # ╠═330930ad-a341-4283-be87-e21a2ee45996
+# ╠═6a881b49-3e19-4db8-88d2-c156d77131c4
 # ╠═1141d878-98c0-484e-9b70-d0cf1a0243b2
 # ╠═f6486da4-f4ef-4fb6-bbbd-96e13d14d14f
 # ╠═9bca1197-597a-4dee-b435-7bd25f0566e5
@@ -176,5 +207,6 @@ end
 # ╠═62c120e3-1569-4369-aae3-a1d12a8d4fbb
 # ╠═3e638860-cf88-4e34-98b0-6bc05152cde9
 # ╠═37649575-2f96-40a9-8027-281ef3040dc0
+# ╠═ea4bdce7-da42-4904-b12b-fd2a10104de3
 # ╠═7b05973c-99af-46c0-8b5f-5a0dfaeadeda
 # ╠═9fb36d4a-93ba-4d0e-a563-291706a938b4
