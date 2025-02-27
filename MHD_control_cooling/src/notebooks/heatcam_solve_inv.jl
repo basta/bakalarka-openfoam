@@ -17,7 +17,7 @@ macro bind(def, element)
 end
 
 # ╔═╡ 33877cce-873b-4c97-b87a-242a66abbb66
-using DifferenceEquations, WGLMakie, LinearAlgebra, Colors, JLD, PlutoUI, EquivariantOperators
+using DifferenceEquations, WGLMakie, LinearAlgebra, Colors, JLD, PlutoUI, EquivariantOperators, ImageFiltering
 
 # ╔═╡ 5955b343-5af1-43a2-90c0-0ae17ea9a41f
 
@@ -31,14 +31,14 @@ begin
 	T = zeros(N,M)
 	# T = [(j/10)^3 for i in 1:N, j in 1:M]
 	# T = JLD.load("/tmp/T_mat.jld")["T"]
-	T = JLD.load("/tmp/nosample_T.jld")["T"]
+	T = JLD.load("../../data/nosample_T.jld")["T"]
 	
 
 	dx = .1/20
 	dy = .1/20
 	▽ = Del([dx 0; 0 dy])  # Cell size matrix
 	Δ² = Lap((dx, dy); pad = :same, border = :smooth)
-	cam_ΔT = 0.000001
+	cam_ΔT = 0.2
     
 end;
 
@@ -51,19 +51,22 @@ end
 let
 	fig = Figure(resolution=(600, 300))
 	ax = Axis(fig[1,1], title="T field")
-	heatmap!(ax, T)
-	ax = Axis(fig[1,2], title="T field")
 	heatmap!(ax, simulate_thermal_cam(T, cam_ΔT))
+	ax = Axis(fig[1,2], title="T field")
+	heatmap!(ax, imfilter(simulate_thermal_cam(T, cam_ΔT), Kernel.gaussian(3)))
 	fig
 end
 
 # ╔═╡ 89aa2199-75d6-44e4-83f8-3bd59c7a0e88
-T_real = simulate_thermal_cam(T, cam_ΔT)
+begin
+	T_real = simulate_thermal_cam(T, cam_ΔT)
+	imfilter(simulate_thermal_cam(T, cam_ΔT), Kernel.gaussian(1))
+end
 
 # ╔═╡ 59981483-90af-4586-b0f1-5a91e511bf45
 ## Calculate b vector
 b, T_lap = let
-	b = zeros(N*M*2)
+	b = zeros(N*M*2+2*N+2*M)
 	T_lap = real(Δ²(T_real))
 	idx = 1 # skip first
 	for i in 1:N
@@ -122,11 +125,64 @@ end
 end
 
 # ╔═╡ fa395f8a-0938-4e7c-a19a-1a26a7612d8f
+begin
+function build_divergence_matrix(N, M)
+    # Create matrix for divergence-free condition (∇·u = 0)
+    ico_mat = zeros(N*M, 2*N*M)
+    
+	for i in 1:N
+		for j in 1:M
+			row = zeros(N*M*2)
+			if i == 1
+				row[ij_to_idx(i, j, N, M, :x)] = -1
+				row[ij_to_idx(i+1, j, N, M, :x)] = 1
+			elseif i == N
+				row[ij_to_idx(i-1, j, N, M, :x)] = -1
+				row[ij_to_idx(i, j, N, M, :x)] = 1
+			else
+				row[ij_to_idx(i-1, j, N, M, :x)] = -1
+				row[ij_to_idx(i+1, j, N, M, :x)] = 1
+			end
+			
+			if j == 1
+				row[ij_to_idx(i, j, N, M, :y)] = -1
+				row[ij_to_idx(i, j+1, N, M, :y)] = 1
+			elseif j == M
+				row[ij_to_idx(i, j-1, N, M, :y)] = -1
+				row[ij_to_idx(i, j, N, M, :y)] = 1
+			else
+				row[ij_to_idx(i, j-1, N, M, :y)] = -1
+				row[ij_to_idx(i, j+1, N, M, :y)] = 1
+			end
+       		ico_mat[ij_to_idx(i, j, N,M, :x), :] = row 
+		end
+	end
+    return ico_mat
+end
 
+function build_boundary_mat_u(N,M)
+	# Builds noslip conditions
+	bound_mat = zeros(N*2+M*2, 2*N*M)
+	idx = 1
+	for i in 1:N
+		for j in 1:M
+			if i == 1 || i == N
+				bound_mat[idx, ij_to_idx(i,j,N,M, :x)] = 1
+				idx += 1
+			end
+			if j == 1 || j == M
+				bound_mat[idx, ij_to_idx(i,j,N,M, :y)] = 1
+				idx += 1
+			end
+		end
+	end
+	return bound_mat
+end
+end
 
 # ╔═╡ e0e8aa4f-4f05-4afe-86b3-08990d1a1366
 ## Calculate A matrix
-A, ico_mat, Dux, Duy = let
+A, ico_mat, Dux, Duy, bound_mat = let
 	diag_ux = zeros(N*M)
 	diag_uy = zeros(N*M)
 	idx = 1
@@ -138,32 +194,18 @@ A, ico_mat, Dux, Duy = let
 			idx += 1
        end
 	end
-	ico_mat = zeros(N*M, 2*N*M)
-	for i in 1:N
-		for j in 1:M
-			row = zeros(N*M*2)
-			if i > 1
-				row[ij_to_idx(i-1, j, N, M, :x)] = -1
-			end
-			if i < N
-				row[ij_to_idx(i+1, j, N, M, :x)] = 1
-			end	
-			if j > 1
-				row[ij_to_idx(i, j-1, N, M, :y)] = -1
-			end
-			if j < M
-				row[ij_to_idx(i, j+1, N, M, :y)] = 1
-			end
-       		ico_mat[ij_to_idx(i, j, N,M, :x), :] = row 
-		end
-	end
+	ico_mat = build_divergence_matrix(N,M)
+	bound_mat = build_boundary_mat_u(N,M)
+	
 	Dux = Diagonal(diag_ux)
 	Duy = Diagonal(diag_uy)
+	# ico_mat = build_divergence_matrix(N,M)
 	A = [
 		Dux Duy;
-		ico_mat
+		ico_mat;
+		bound_mat;
 	]
-	A, ico_mat, Dux, Duy
+	A, ico_mat, Dux, Duy, bound_mat
 end;
 
 # ╔═╡ dac1b492-2831-4b53-a9d3-4db02b99ed48
@@ -176,8 +218,10 @@ begin
 	spy!(Dux')
 	ax = Axis(fig[1,2], title="Duy")
 	spy!(Duy')
-	ax = Axis(fig[2:3,1:2], title="ico_mat")
-	spy!(A)
+	ax = Axis(fig[2,1:2], title="ico_mat")
+	spy!(ico_mat')
+	ax = Axis(fig[3,1:2], title="ico_mat")
+	spy!(bound_mat')
 	fig
 end
 
@@ -236,6 +280,7 @@ end
 # ╔═╡ 0b6985c2-cc3f-4888-9352-97b109f4e5f0
 let
 	Δ² = Lap((dx, dy); pad = :same, border = :smooth)
+	T = imfilter(T, Kernel.gaussian(3))
     
     # Compute gradient components
     grad_T = real(▽(T))[:,:]  # x-component
@@ -278,6 +323,7 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
 DifferenceEquations = "e0ca9c66-1f9e-11ec-127a-1304ce62169c"
 EquivariantOperators = "e0aa4542-b1ed-4e6a-a09e-9c4627a9da65"
+ImageFiltering = "6a3955dd-da59-5b1f-98d4-e7296123deb5"
 JLD = "4138dd39-2aa7-5051-a626-17a0bb65d9c8"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
@@ -287,6 +333,7 @@ WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 Colors = "~0.12.11"
 DifferenceEquations = "~0.5.3"
 EquivariantOperators = "~0.1.7"
+ImageFiltering = "~0.7.9"
 JLD = "~0.13.5"
 PlutoUI = "~0.7.60"
 WGLMakie = "~0.10.14"
@@ -298,7 +345,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.5"
 manifest_format = "2.0"
-project_hash = "f772a365de040d7c17033067cdecdf8f1cb4ddf7"
+project_hash = "895cf546e5efbaff71c14349b0f57605b73f3bc5"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "016833eb52ba2d6bea9fcb50ca295980e728ee24"
