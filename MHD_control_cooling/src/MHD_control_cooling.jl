@@ -15,7 +15,7 @@ using Revise, JSON, LinearAlgebra
 using Revise, Glob, Logging, GLMakie
 using LinearAlgebra, BlackBoxOptim, Dates
 
-logger = ConsoleLogger(stderr, Logging.Info) 
+logger = ConsoleLogger(stderr, Logging.Info)
 
 global_logger(logger)
 
@@ -25,11 +25,14 @@ global_logger(logger)
 include("./openfoam/field_utils.jl")
 include("./openfoam/real_field.jl")
 
+elMagData = create_trees("./data/forceFields")
 
-CASE_DIR = "../heat-sim-H/"
-TRANS_FUN = H2magman
 
-export CASE_DIR, TRANS_FUN
+
+CASE_DIR = "../2d-example/"
+TRANS_FUN = example2magman
+
+export CASE_DIR, TRANS_FUN, run_sim, real_force_generator
 
 
 function evaluate_criterium(time_path::String, cell_indexes::Vector{Int64})::Float64
@@ -38,7 +41,7 @@ function evaluate_criterium(time_path::String, cell_indexes::Vector{Int64})::Flo
     # extract relevant fields
     T_slice = T[cell_indexes]
     # calculate criterium
-    return sum(T_slice)/length(T_slice) 
+    return sum(T_slice)/length(T_slice)
 end
 
 function run_sim(F::Function)
@@ -73,6 +76,15 @@ function log_experiment_json(dir, name, criteria, desc)
         write(f, json)
     end
 end
+
+function real_force_generator(θ, per_partes_out=false)
+    @assert length(θ) == 8
+    function real_force(x)
+        x_mg = MHD_control_cooling.TRANS_FUN(x)
+        return get_force_at_point(elMagData, x_mg, θ, per_partes_out);
+    end
+end
+
 
 function main()
     centers_field_path = "../$(CASE_DIR)0/C"

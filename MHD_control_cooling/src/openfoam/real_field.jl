@@ -1,5 +1,5 @@
-using NearestNeighbors, JLD, LinearAlgebra, Logging, PrettyTables, CairoMakie, CSV, DataFrames
-
+using NearestNeighbors, LinearAlgebra, Logging, PrettyTables, CairoMakie, CSV, DataFrames
+using JLD2
 include("./field_utils.jl")
 
 mutable struct ElMagneticInput
@@ -32,9 +32,9 @@ function interpolate_tree(nn_tree, vecs, points)
 				# i_vec = cross(collect(i_vec), [1;0;0])
 				vec3 = vec3 .+ i_vec.*w_i
 			end
-			
+
 			vec3 = vec3 ./ w_sum
-			
+
 			push!(vecsE,vec3)
 		end
 	return stack(vecsE)
@@ -43,7 +43,7 @@ end
 
 function create_elmaginput(jld_path::String)
     data = load(jld_path)
-    poses = data["coords"]
+    poses = data["coords"].parent'
     isEl = haskey(data, "Ez")
     if isEl
         vecs = stack(zip(data["Ex"], data["Ey"], data["Ez"]))
@@ -123,6 +123,12 @@ end
 
 function H2magman(vec::AbstractArray{Float64, 1})
     source_cube = (x=(0.05, 0.15), y=(0.0, 0.1), z=(0.0, 1.0))
+    target_cube = (x=(-0.05, 0.05), y=(-0.05, 0.05), z=(0.0, 0.1))
+    return transform_coordinate(source_cube, target_cube, vec)
+end
+
+function example2magman(vec::AbstractArray{Float64, 1})
+    source_cube = (x=(0.00, 0.1), y=(0.0, 0.1), z=(0.0, 1.0))
     target_cube = (x=(-0.05, 0.05), y=(-0.05, 0.05), z=(0.0, 0.1))
     return transform_coordinate(source_cube, target_cube, vec)
 end
