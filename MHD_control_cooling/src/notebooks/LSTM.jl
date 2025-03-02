@@ -11,7 +11,7 @@ using JLD2, Flux, Statistics, ProgressLogging, Optimisers, MLUtils, Plots
 using WGLMakie
 
 # ╔═╡ c0a9fd4e-a5e0-46da-94a7-0361055c560a
-dataset = jldopen("../../data/dataset.jld2")["dataset"]
+dataset = jldopen("../../data/dataset.jld2")["dataset"][1:20]
 
 # ╔═╡ 0ff0e59d-8eaa-4379-9a16-7664e48c8460
 dataset[1][2]
@@ -29,7 +29,7 @@ begin
 		u = dataset[S][1]
 		for t_start in (1-seq_len):(n_time_steps-seq_len-1)
 			if t_start < 1
-				seq_start = ones(n_features, -t_start).*20 #Initial conditions
+				seq_start = ones(n_features, -t_start).*0 #Initial conditions
 				nonzero_seq_len = seq_len - 1 + t_start
 			else
 				seq_start = zeros(n_features, 0)
@@ -56,13 +56,13 @@ U = stack(U_samples);
 X = stack(X_samples);
 
 # ╔═╡ be1aba99-7be6-457a-a134-cd6dc3fb3f18
-Y = stack(Y_samples)
+Y = stack(Y_samples);
 
 # ╔═╡ b09a805d-ebec-488b-a9d3-85614df5075d
 n_features, n_time_steps, n_samples
 
 # ╔═╡ 486edc25-d34e-4c03-975e-0874d290b12b
-X_combined = [X; U]
+X_combined = [X; U];
 
 # ╔═╡ 2acc08c4-a402-4d96-9fd8-4c6cf360889f
 train_data, test_data = splitobs((Float32.(X_combined), Float32.(Y)), at=0.80)
@@ -81,49 +81,95 @@ begin
 	# Define model dimensions
 	state_dim = size(X, 1)
 	control_dim = size(U, 1)
-	hidden_dim = 64
+	hidden_dim = 100
 	combined_dim = state_dim + control_dim
 end
 
 # ╔═╡ eccd1881-661b-4344-afc0-a4bbe9c68e3f
 loss(x, y) = Flux.Losses.mse(x, y)
 
+# ╔═╡ 4612d73f-b579-47e8-8961-7f6a23733e98
+begin
+	struct OuterProductLayer end 
+	Flux.@layer OuterProductLayer  # Enables Flux integration and pretty printing
+	
+	function (m::OuterProductLayer)(x)
+		u = x[size(x,1)-7:end, :]
+	    a = u[1:4, :]          # First 4 elements (handles batches)
+	    b = u[5:8, :]          # Second 4 elements
+	    a_reshaped = reshape(a, 4, 1, :)  # Prepare for broadcasted multiplication
+	    b_reshaped = reshape(b, 1, 4, :)  # Transpose second half
+	    u = a_reshaped .* b_reshaped  # Outer product via broadcasting
+		u = reshape(u, :, size(u, 3))
+		return [
+			x;
+			u
+		]
+	end
+	
+end
+
+# ╔═╡ f99d441a-46b0-4dfe-80cd-65665ab729d9
+OuterProductLayer()(rand(10,20))
+
 # ╔═╡ 62b0e43e-1a7a-4b1d-a9ac-f767062a8683
 begin
 	model = Chain(
-		LSTM(combined_dim => hidden_dim),
+		OuterProductLayer(),
+		Flux.Recurrence(RNNCell(40 => hidden_dim), ),
 		Dropout(0.2),
-		Dense(hidden_dim => state_dim)
+		Dense(hidden_dim => state_dim),
+		# Dense(hidden_dim => state_dim)
 	)
-	opt_rule = Optimisers.Adam(1e-4)
-	opt_state = Optimisers.setup(opt_rule, model)
-	
+	# model = Chain(
+	# 	# RNN(combined_dim => hidden_dim),
+	# 	Dense(combined_dim => 64),
+	# 	Dropout(0.2),
+	# 	Dense(64 => state_dim)
+	# )
 	
 	train_losses = []
 	test_losses = []
 	batches_losses_log = []
+
+	best_loss = 9999999
+	best_state = nothing
+
+	opt_rule = Optimisers.Adam(1e-3)
+	opt_state = Optimisers.setup(opt_rule, model)
 	
-	@progress for e in 1:3
+	
+	@progress for e in 1:150
+		global best_loss
+		global best_state
+		LR = e <= 10 ? 1e-3 : 1e-4
+		Optimisers.adjust!(opt_state, LR)
+
+	
 	    batch_losses = Float32[]
 		batch_test_losses = Float32[]
 		
 		Flux.trainmode!(model)
 	    for (x_batch, y_batch) in dataloader_train
-			Flux.reset!(model[1]) 
+			Flux.reset!(model[2]) 
 	        # Calculate loss and gradients
 	        val, grads = Flux.withgradient(model) do m
 				state = x_batch[:, 1, :]
-				for t in 2:size(x_batch,2)
+				loss_val = 0
+				for t in 2:size(x_batch,2)-1
 		            state = m(state)
 					u = x_batch[n_features+1:end, t, :]
 					state = [
 						state;
 						u
 					]
+					loss_val += loss(state[1:n_features, :], x_batch[1:n_features, t+1, :])
 				end
-				loss_val = loss(state[1:n_features, :], y_batch)
+				loss_val /= (size(x_batch,2)-1)
 				
-	            return loss_val
+				# loss_val = loss(state[1:n_features, :], y_batch)
+				
+	            loss_val
 	        end
 	        
 
@@ -133,57 +179,65 @@ begin
 			Flux.update!(opt_state, model, grads[1])
 	    end
 
-		push!(train_losses, batch_losses...)
+		push!(train_losses, mean(batch_losses))
 
-		Flux.reset!(model[1]) 
+		Flux.reset!(model[2]) 
 		Flux.testmode!(model)
 		for (x_test, y_test) in dataloader_test
-			Flux.reset!(model[1]) 
-				state = x_test[:, 1, :]
-				for t in 2:size(x_test,2)
-		            state = model(state)
-					u = x_test[n_features+1:end, t, :]
-					state = [
-						state;
-						u
-					]
-				end
-				loss_val = loss(state[1:n_features, :], y_test)
+			Flux.reset!(model[2]) 
+			state = x_test[:, 1, :]
+			loss_val = 0
+			for t in 2:size(x_test,2)-1
+				state = model(state)
+				u = x_test[n_features+1:end, t, :]
+				state = [
+					state;
+					u
+				]
+				loss_val += loss(state[1:n_features, :], x_test[1:n_features, t+1, :])
+			end
+			loss_val /= (size(x_test,2)-1)
+			# loss_val = loss(state[1:n_features, :], y_test)
 				
 			push!(batch_test_losses, [loss_val for i in 1:size(x_test, 3)]...)
 		end
 
 		test_loss = mean(batch_test_losses)
+
+		if test_loss < best_loss
+			best_state = Flux.state(model)
+			best_loss = test_loss
+		end
 	    
 	    push!(test_losses, test_loss)
 		push!(batches_losses_log, batch_test_losses)
 	    
 	    println("Epoch $e: Train loss = $(train_losses[end]), Test loss = $test_loss")
 	end
+
+	println("Loading best model with loss $best_loss")
+	Flux.loadmodel!(model, best_state)
 	
 end
-
-# ╔═╡ 468c1808-a0e7-42d3-b899-66e3731dd7d0
-train_losses
 
 # ╔═╡ 22ae831e-b7a3-49ad-a57b-c1cc58cad60a
 begin
 	Plots.plot(train_losses, labels=["train" "test"], yscale=:log10)
 end
 
-# ╔═╡ f3d0bf46-7035-4ec0-b059-bca72c2fcaa8
-begin
-	for (x_test, y_test) in dataloader_test
-		println(size(x_test))
-	end
-end
+
+# ╔═╡ ad537a48-cd0f-413d-963e-1fcb7c78425c
+Plots.plot(test_losses, labels=["test" "test"], yscale=:log10)
 
 # ╔═╡ 9d5742cc-5d09-459d-8559-00ca8166de4c
-let
-	CASE = 2
-	Flux.reset!(model[1])
+begin
+fig, dbg = let
+	CASE = 50
+	Flux.reset!(model[2])
 	fig = Figure()
-	states = test_data[1]
+	states = train_data[1]
+
+	dbg = []
 	
 	start_state = states[:, 1, CASE]
 	u = start_state[17:end]
@@ -191,29 +245,69 @@ let
 	X_model[:, 1] = start_state
 	for i in 1:seq_len-1
 		next_state = model(reshape(X_model[:, i], :, 1))
-		u = states[17:end, i, CASE]
+		u = states[17:end, i+1, CASE]
+		push!(dbg, u)
+		
 		next_state = [
 			next_state;
 			u
 		]
 		X_model[:, i+1] = next_state
 	end
-	for (i, fig_pos) in enumerate(vec([(i, j) for i in 1:2 for j in 1:2]))
+	for (i, fig_pos) in enumerate(vec([(i, j) for i in 1:4 for j in 1:4]))
 		ax = Axis(fig[fig_pos[1], fig_pos[2]])
 		
 		temps = states[i, :, CASE]
 		temps_model = X_model[i, :]
 		lines!(ax, 1:seq_len, temps)
 		lines!(ax, 1:seq_len, temps_model)
+		lines!(ax, 1:seq_len, X_model[20, :])
 	end
+	fig, dbg
+end
 	fig
 end
+
+# ╔═╡ 339b1507-8d72-4f09-9d43-dfece45ede8f
+mean.(dbg)
 
 # ╔═╡ 00d918bc-809c-4f36-bff4-eeeb9f2fb53d
 test_data[1][:, :, 2]
 
 # ╔═╡ 5cbdadc3-7ff4-40a9-8542-2f61bc6ca569
-model[1]CASE.
+Flux.reset!(model)
+
+# ╔═╡ 5ffce873-51af-48cf-9e47-0542d793fc80
+model(ones(24))
+
+# ╔═╡ fc00c890-4aaa-41c9-a5fe-538022a4f472
+begin
+# Custom training loop for state management
+for epoch in 1:10
+    Flux.reset!(model)  # Critical between epochs
+    Flux.train!(loss, model, dataloader_train, opt_state)
+end
+end
+
+# ╔═╡ abb56b64-09f6-4687-a84f-44781a067557
+let
+	Flux.reset!(model[2]) 
+	states = train_data[1][:, :, 5]
+	state = states[:,1]
+	loss_val = 0
+	for t in 2:size(states,2)-1
+	state = model(state)
+	u = states[n_features+1:end, t, :]
+	state = [
+		state;
+		u
+	]
+	println(loss_val)
+	loss_val += loss(state[1:n_features, :], states[1:n_features, t+1, :])
+	end
+	loss_val /= (size(states,2)-1)
+	# loss_val = loss(state[1:n_features, :], y_test)
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2562,13 +2656,18 @@ version = "1.4.1+2"
 # ╠═e5c316b2-9592-4011-8506-966ea319647b
 # ╠═72f3d0be-0efb-41ef-9988-1f109119f7e3
 # ╠═eccd1881-661b-4344-afc0-a4bbe9c68e3f
+# ╠═4612d73f-b579-47e8-8961-7f6a23733e98
+# ╠═f99d441a-46b0-4dfe-80cd-65665ab729d9
 # ╠═62b0e43e-1a7a-4b1d-a9ac-f767062a8683
-# ╠═468c1808-a0e7-42d3-b899-66e3731dd7d0
 # ╠═22ae831e-b7a3-49ad-a57b-c1cc58cad60a
-# ╠═f3d0bf46-7035-4ec0-b059-bca72c2fcaa8
+# ╠═ad537a48-cd0f-413d-963e-1fcb7c78425c
 # ╠═e7b38171-3fc1-40ce-8fd4-d35c27524f5b
 # ╠═9d5742cc-5d09-459d-8559-00ca8166de4c
+# ╠═339b1507-8d72-4f09-9d43-dfece45ede8f
 # ╠═00d918bc-809c-4f36-bff4-eeeb9f2fb53d
 # ╠═5cbdadc3-7ff4-40a9-8542-2f61bc6ca569
+# ╠═5ffce873-51af-48cf-9e47-0542d793fc80
+# ╠═fc00c890-4aaa-41c9-a5fe-538022a4f472
+# ╠═abb56b64-09f6-4687-a84f-44781a067557
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
