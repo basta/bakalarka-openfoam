@@ -14,32 +14,55 @@ using WGLMakie
 dataset = jldopen("../../data/dataset.jld2")["dataset"]
 
 # ╔═╡ 0ff0e59d-8eaa-4379-9a16-7664e48c8460
-dataset[1][1]
+dataset[1][2]
 
 # ╔═╡ cbbe9ede-839f-4197-9df3-2f13f3ca6c8e
 begin
 	n_features = size(dataset[1][2], 1)
 	n_time_steps = size(dataset[1][2], 2)
 	n_samples = size(dataset, 1)
-	X = zeros(n_features, n_time_steps-1, n_samples)
-	U = zeros(size(dataset[1][1], 1), n_time_steps-1, n_samples)
-	Y = zeros(n_features, n_time_steps-1, n_samples)
-	for (i, (U_t, X_t)) in enumerate(dataset)
-		X[:, :, i] = dataset[i][2][:, 1:(end-1)]
-		if (i < size(X,3))
-			Y[:, :, i] = dataset[i+1][2][:, 2:end]
-		end
-		for t in 1:n_time_steps-1
-			U[:, t, i] = dataset[i][1]
+	seq_len = 15
+	X_samples = []
+	U_samples = []
+	Y_samples = []
+	for S in 1:n_samples
+		u = dataset[S][1]
+		for t_start in (1-seq_len):(n_time_steps-seq_len-1)
+			if t_start < 1
+				seq_start = ones(n_features, -t_start).*20 #Initial conditions
+				nonzero_seq_len = seq_len - 1 + t_start
+			else
+				seq_start = zeros(n_features, 0)
+				nonzero_seq_len = seq_len - 1
+			end
+			seq_nonzero = dataset[S][2][:,t_start+(seq_len-nonzero_seq_len):(t_start+seq_len)]
+			seq = [
+				seq_start seq_nonzero
+			]
+			u_seq = [
+				repeat(zeros(size(u,1)), 1, size(seq_start,2)) repeat(u, 1, size(seq_nonzero, 2))
+			]
+			push!(X_samples, seq)
+			push!(U_samples, u_seq)
+			push!(Y_samples, dataset[S][2][:,t_start+seq_len+1])
 		end
 	end
 end
+
+# ╔═╡ 79c6d3a6-058b-489c-98d5-87267b9bbaa1
+U = stack(U_samples);
+
+# ╔═╡ 6ebc4ff3-e52f-4ee3-a73b-2b3b4f2ee860
+X = stack(X_samples);
+
+# ╔═╡ be1aba99-7be6-457a-a134-cd6dc3fb3f18
+Y = stack(Y_samples)
 
 # ╔═╡ b09a805d-ebec-488b-a9d3-85614df5075d
 n_features, n_time_steps, n_samples
 
 # ╔═╡ 486edc25-d34e-4c03-975e-0874d290b12b
-X_combined = [X; U];
+X_combined = [X; U]
 
 # ╔═╡ 2acc08c4-a402-4d96-9fd8-4c6cf360889f
 train_data, test_data = splitobs((Float32.(X_combined), Float32.(Y)), at=0.80)
@@ -72,7 +95,7 @@ begin
 		Dropout(0.2),
 		Dense(hidden_dim => state_dim)
 	)
-	opt_rule = Optimisers.Adam(1e-2)
+	opt_rule = Optimisers.Adam(1e-4)
 	opt_state = Optimisers.setup(opt_rule, model)
 	
 	
@@ -80,7 +103,7 @@ begin
 	test_losses = []
 	batches_losses_log = []
 	
-	@progress for e in 1:300
+	@progress for e in 1:3
 	    batch_losses = Float32[]
 		batch_test_losses = Float32[]
 		
@@ -89,26 +112,44 @@ begin
 			Flux.reset!(model[1]) 
 	        # Calculate loss and gradients
 	        val, grads = Flux.withgradient(model) do m
-	            result = m(x_batch)
-	            loss_val = loss(result, y_batch)
+				state = x_batch[:, 1, :]
+				for t in 2:size(x_batch,2)
+		            state = m(state)
+					u = x_batch[n_features+1:end, t, :]
+					state = [
+						state;
+						u
+					]
+				end
+				loss_val = loss(state[1:n_features, :], y_batch)
+				
 	            return loss_val
 	        end
 	        
 
 	        # Update model parameters
-			push!(batch_losses, [val for i in 1:size(x_batch, 2)]...)
+			push!(batch_losses, val)
 
 			Flux.update!(opt_state, model, grads[1])
 	    end
 
-		push!(train_losses, mean(batch_losses))
+		push!(train_losses, batch_losses...)
 
 		Flux.reset!(model[1]) 
 		Flux.testmode!(model)
 		for (x_test, y_test) in dataloader_test
 			Flux.reset!(model[1]) 
-			res = model(x_test)
-			loss_val = loss(res, y_test)
+				state = x_test[:, 1, :]
+				for t in 2:size(x_test,2)
+		            state = model(state)
+					u = x_test[n_features+1:end, t, :]
+					state = [
+						state;
+						u
+					]
+				end
+				loss_val = loss(state[1:n_features, :], y_test)
+				
 			push!(batch_test_losses, [loss_val for i in 1:size(x_test, 3)]...)
 		end
 
@@ -122,12 +163,12 @@ begin
 	
 end
 
-# ╔═╡ 01bf56f2-3613-4b52-a3bb-871b06b1876f
-batches_losses_log[72]
+# ╔═╡ 468c1808-a0e7-42d3-b899-66e3731dd7d0
+train_losses
 
 # ╔═╡ 22ae831e-b7a3-49ad-a57b-c1cc58cad60a
 begin
-	Plots.plot(1:1:size(train_losses,1), [train_losses, test_losses], labels=["train" "test"], yscale=:log10)
+	Plots.plot(train_losses, labels=["train" "test"], yscale=:log10)
 end
 
 # ╔═╡ f3d0bf46-7035-4ec0-b059-bca72c2fcaa8
@@ -142,15 +183,15 @@ let
 	CASE = 2
 	Flux.reset!(model[1])
 	fig = Figure()
-	states = train_data[1]
+	states = test_data[1]
 	
 	start_state = states[:, 1, CASE]
 	u = start_state[17:end]
-	println("Inputs $u")
 	X_model = zeros_like(states[:, :, CASE])
 	X_model[:, 1] = start_state
-	for i in 1:48
+	for i in 1:seq_len-1
 		next_state = model(reshape(X_model[:, i], :, 1))
+		u = states[17:end, i, CASE]
 		next_state = [
 			next_state;
 			u
@@ -162,11 +203,14 @@ let
 		
 		temps = states[i, :, CASE]
 		temps_model = X_model[i, :]
-		lines!(ax, 1:49, temps)
-		lines!(ax, 1:49, temps_model)
+		lines!(ax, 1:seq_len, temps)
+		lines!(ax, 1:seq_len, temps_model)
 	end
 	fig
 end
+
+# ╔═╡ 00d918bc-809c-4f36-bff4-eeeb9f2fb53d
+test_data[1][:, :, 2]
 
 # ╔═╡ 5cbdadc3-7ff4-40a9-8542-2f61bc6ca569
 model[1]CASE.
@@ -2507,6 +2551,9 @@ version = "1.4.1+2"
 # ╠═c0a9fd4e-a5e0-46da-94a7-0361055c560a
 # ╠═0ff0e59d-8eaa-4379-9a16-7664e48c8460
 # ╠═cbbe9ede-839f-4197-9df3-2f13f3ca6c8e
+# ╠═79c6d3a6-058b-489c-98d5-87267b9bbaa1
+# ╠═6ebc4ff3-e52f-4ee3-a73b-2b3b4f2ee860
+# ╠═be1aba99-7be6-457a-a134-cd6dc3fb3f18
 # ╠═b09a805d-ebec-488b-a9d3-85614df5075d
 # ╠═486edc25-d34e-4c03-975e-0874d290b12b
 # ╠═2acc08c4-a402-4d96-9fd8-4c6cf360889f
@@ -2516,11 +2563,12 @@ version = "1.4.1+2"
 # ╠═72f3d0be-0efb-41ef-9988-1f109119f7e3
 # ╠═eccd1881-661b-4344-afc0-a4bbe9c68e3f
 # ╠═62b0e43e-1a7a-4b1d-a9ac-f767062a8683
-# ╠═01bf56f2-3613-4b52-a3bb-871b06b1876f
+# ╠═468c1808-a0e7-42d3-b899-66e3731dd7d0
 # ╠═22ae831e-b7a3-49ad-a57b-c1cc58cad60a
 # ╠═f3d0bf46-7035-4ec0-b059-bca72c2fcaa8
 # ╠═e7b38171-3fc1-40ce-8fd4-d35c27524f5b
 # ╠═9d5742cc-5d09-459d-8559-00ca8166de4c
+# ╠═00d918bc-809c-4f36-bff4-eeeb9f2fb53d
 # ╠═5cbdadc3-7ff4-40a9-8542-2f61bc6ca569
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
