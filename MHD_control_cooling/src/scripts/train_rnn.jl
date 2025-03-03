@@ -1,6 +1,7 @@
 using JLD2, Flux, Statistics, ProgressLogging, Optimisers, MLUtils, Plots, Logging, PrettyPrint
-using TensorBoardLogger
+using TensorBoardLogger, CUDA, cuDNN
 
+device = get_device()
 
 logger = ConsoleLogger(stderr, Logging.Info)
 global_logger(logger)
@@ -44,7 +45,7 @@ function create_X(dataset_path::String)::AbstractArray{Float32,3}
     Y = stack(Y_samples)
     X_combined = [X; U]
     @info "Created X with shapes X:$(size(X_combined)) (features, seq_len, samples) "
-    return Float32.(X_combined)
+    return Float32.(X_combined) |> device
 end
 
 struct OuterProductLayer end
@@ -70,7 +71,7 @@ function create_model()
         Flux.Recurrence(RNNCell(40 => 100),),
         Dropout(0.2),
         Dense(100 => 16),
-    )
+    ) |> device
 end
 
 function train(model, X_train, X_test, epochs)
