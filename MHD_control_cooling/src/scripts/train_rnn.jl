@@ -86,6 +86,8 @@ function train(model, X_train, X_test, epochs)
     opt_rule = Optimisers.Adam(3e-4)
     opt_state = Optimisers.setup(opt_rule, model)
 
+	batch_losses = Float32[]
+
 
     @info "Starting training for $epochs epochs"
     @progress for e in 1:epochs
@@ -96,8 +98,8 @@ function train(model, X_train, X_test, epochs)
 
         train_losses = []
 
-        batch_losses = Float32[]
         batch_test_losses = Float32[]
+
 
         Flux.trainmode!(model)
         for (x_batch) in X_train
