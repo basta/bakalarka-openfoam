@@ -68,9 +68,11 @@ end
 function create_model()
     return Chain(
         OuterProductLayer(),
-        Flux.Recurrence(RNNCell(40 => 100),),
-        Dropout(0.2),
-        Dense(100 => 16),
+        Flux.Recurrence(RNNCell(40 => 128),),
+	    Dropout(0.3),
+        Flux.Recurrence(RNNCell(128 => 128),),
+        Dropout(0.3),
+        Dense(128 => 16),
     ) |> device
 end
 
@@ -81,7 +83,7 @@ function train(model, X_train, X_test, epochs)
     best_loss = 9999999
     best_state = nothing
 
-    opt_rule = Optimisers.Adam(1e-4)
+    opt_rule = Optimisers.Adam(3e-4)
     opt_state = Optimisers.setup(opt_rule, model)
 
 
@@ -100,6 +102,7 @@ function train(model, X_train, X_test, epochs)
         Flux.trainmode!(model)
         for (x_batch) in X_train
             Flux.reset!(model[2])
+            Flux.reset!(model[4])
             # Calculate loss and gradients
             val, grads = Flux.withgradient(model) do m
                 # Full sequence
@@ -140,6 +143,7 @@ function train(model, X_train, X_test, epochs)
         batch_test_losses = []
         for (x_batch) in X_test
             Flux.reset!(model[2])
+	        Flux.reset!(model[4])
             loss_val = 0
             for t in 1:size(x_batch, 2)-1
                 x = x_batch[:, t, :]
