@@ -56,7 +56,7 @@ function (m::OuterProductLayer)(x)
     a = u[1:4, :]          # First 4 elements (handles batches)
     b = u[5:8, :]          # Second 4 elements
     a_reshaped = reshape(a, 4, 1, :)  # Prepare for broadcasted multiplication
-    b_reshaped = reshape(b, 1, 4, :)  # Transpose second half
+    b_reshaped = reshape(a, 4, 1, :)  # Prepare for broadcasted multiplication
     u = a_reshaped .* b_reshaped  # Outer product via broadcasting
     u = reshape(u, :, size(u, 3))
     return [
@@ -96,7 +96,7 @@ function train(model, X_train, X_test, epochs)
         # LR = e <= 10 ? 1e-3 : 1e-4
         # Optimisers.adjust!(opt_state, LR)
 
-        train_losses = []
+        train_losses = Float32[]
 
         batch_test_losses = Float32[]
 
