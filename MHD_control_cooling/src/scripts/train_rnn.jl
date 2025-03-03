@@ -13,7 +13,7 @@ function create_X(dataset_path::String)::AbstractArray{Float32,3}
         n_features = size(dataset[1][2], 1)
         n_time_steps = size(dataset[1][2], 2)
         n_samples = size(dataset, 1)
-        seq_len = 30
+        seq_len = 48
         X_samples = []
         U_samples = []
         Y_samples = []
@@ -21,7 +21,8 @@ function create_X(dataset_path::String)::AbstractArray{Float32,3}
             u = dataset[S][1]
             for t_start in (1-seq_len):(n_time_steps-seq_len-1)
                 if t_start < 1
-                    # continue # TODO zerostart disabled here
+                    # zero start is complete nonsense as it hold unstable conditions
+                    continue # TODO zerostart disabled here
                     seq_start = ones(n_features, -t_start) .* 0  #Initial conditions
                     seq_start = seq_start .+ 5 .*(rand(size(seq_start)...) .- 0.5) 
                     nonzero_seq_len = seq_len - 1 + t_start
@@ -65,6 +66,10 @@ function (m::OuterProductLayer)(x)
     u = a_reshaped .* b_reshaped  # Outer product via broadcasting
     u = reshape(u, :, size(u, 3))
     
+    println(size([
+        x[1:size(x,1)-8, :];
+        u
+    ]))
     return [
         x[1:size(x,1)-8, :];
         u
@@ -76,11 +81,11 @@ function create_euler_model()
         OuterProductLayer(),
         Parallel(
             +,
-            x -> x[1:16, :],
+            x -> x[1:size(x, 1)-16, :],
             Chain(
-                Dense(32=>128, relu),
+                Dense(33=>128, relu),
                 Dropout(0.2),
-                Dense(128=>16, relu),
+                Dense(128=>17, relu),
             )
         )
     )
@@ -89,9 +94,9 @@ end
 function create_model()
     return Chain(
         OuterProductLayer(),
-        Flux.Recurrence(RNNCell(32 => 156),),
+        Flux.Recurrence(RNNCell(33 => 156),),
         Dropout(0.2),
-        Dense(156 => 16)
+        Dense(156 => 17)
     )
 
 end
@@ -117,7 +122,7 @@ function seq_eval(model, x_batch)
         loss_val += Flux.mse(y_pred, y)
         state = [
             y_pred;
-            x_batch[17:24, t+1, :]
+            x_batch[1:size(x_batch, 1)-8, t+1, :]
         ]
     end
     loss_val /= (size(x_batch, 2) - 1)
@@ -152,7 +157,7 @@ function train(model, X_train, X_test, epochs; LR=1e-3)
             # Calculate loss and gradients
             val, grads = Flux.withgradient(model) do m
                 # return piecewise_eval(model, x_batch)
-                if e < 1000
+                if e < 30
                     return piecewise_eval(m, x_batch)
                 else
                     return seq_eval(m, x_batch)
@@ -184,7 +189,7 @@ function train(model, X_train, X_test, epochs; LR=1e-3)
             BSON.@save "best_model.bson" model
         end
         
-        if e % 100 == 0
+        if e % 1 == 0
             println("Epoch $e: Train loss = $(mean(batch_losses)), Test loss= $(mean(batch_test_losses))")
             @info "training" train_loss = mean(batch_losses) logger = logger
         end
