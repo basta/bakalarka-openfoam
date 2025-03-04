@@ -4,8 +4,10 @@ authors = ["basta <jsembasta@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
 BlackBoxOptim = "a134a8b2-14d6-55f6-9291-3336d3ab0209"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
@@ -36,6 +38,8 @@ ProfileView = "c46f51b8-102a-5cf2-8d2c-8597cb0e0da7"
 ProgressLogging = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
+Wandb = "ad70616a-06c9-5745-b1f1-6a5f42545108"
+cuDNN = "02a925ec-e4fe-4b08-9a7e-0d78e3d38ccd"
 
 [compat]
 Pluto = "0.20.4"
