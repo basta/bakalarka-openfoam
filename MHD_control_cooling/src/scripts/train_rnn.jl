@@ -66,10 +66,6 @@ function (m::OuterProductLayer)(x)
     u = a_reshaped .* b_reshaped  # Outer product via broadcasting
     u = reshape(u, :, size(u, 3))
     
-    println(size([
-        x[1:size(x,1)-8, :];
-        u
-    ]))
     return [
         x[1:size(x,1)-8, :];
         u
@@ -98,7 +94,6 @@ function create_model()
         Dropout(0.2),
         Dense(156 => 17)
     )
-
 end
 
 function piecewise_eval(model, x_batch)
@@ -122,7 +117,7 @@ function seq_eval(model, x_batch)
         loss_val += Flux.mse(y_pred, y)
         state = [
             y_pred;
-            x_batch[1:size(x_batch, 1)-8, t+1, :]
+            x_batch[size(x_batch, 1)-7:end, t+1, :]
         ]
     end
     loss_val /= (size(x_batch, 2) - 1)
@@ -157,7 +152,7 @@ function train(model, X_train, X_test, epochs; LR=1e-3)
             # Calculate loss and gradients
             val, grads = Flux.withgradient(model) do m
                 # return piecewise_eval(model, x_batch)
-                if e < 30
+                if e < 1000
                     return piecewise_eval(m, x_batch)
                 else
                     return seq_eval(m, x_batch)
@@ -174,7 +169,7 @@ function train(model, X_train, X_test, epochs; LR=1e-3)
         Flux.trainmode!(model)
         batch_test_losses = []
         for (x_batch) in X_test
-            Flux.reset!(model[2])
+            Flux.reset!(model)
             loss_val = seq_eval(model, x_batch)
 
             # loss_val = loss(state[1:n_features, :], y_batch)
@@ -189,16 +184,11 @@ function train(model, X_train, X_test, epochs; LR=1e-3)
             BSON.@save "best_model.bson" model
         end
         
-        if e % 1 == 0
+        if e % 50 == 0
             println("Epoch $e: Train loss = $(mean(batch_losses)), Test loss= $(mean(batch_test_losses))")
             @info "training" train_loss = mean(batch_losses) logger = logger
         end
     end
-
-
-
-
-
 end
 
 function create_dataloaders(X)::Tuple{Flux.DataLoader,Flux.DataLoader}
@@ -233,15 +223,16 @@ function main_eval(model::Union{String,Any}, case)
 
     seq_len = size(X,2)
 
-    fig = Figure()
+    fig = Figure(resolution=(1000, 1500))
+
     states = X
     start_state = states[:, 1, case]
-	u = start_state[17:end]
+	u = start_state[size(states, 1)-7:end]
 	X_model = zeros_like(states[:, :, case])
 	X_model[:, 1] = start_state
 	for i in 1:seq_len-1
 		next_state = model(reshape(X_model[:, i], :, 1))
-		u = states[17:end, i+1, case]
+		u = states[size(states, 1)-7:end, i+1, case]
 		
 		next_state = [
 			next_state;
@@ -254,9 +245,23 @@ function main_eval(model::Union{String,Any}, case)
 		
 		temps = states[i, :, case]
 		temps_model = X_model[i, :]
-		lines!(ax, 1:seq_len, temps)
-		lines!(ax, 1:seq_len, temps_model)
+        lines!(ax, 1:seq_len, temps; label="Actual")
+        lines!(ax, 1:seq_len, temps_model; label="Model")
+
+        ax.title = "Variable $i"
+        ax.xlabel = "Time"
+        ax.ylabel = "Value"
+        axislegend(ax, position=:lr)
 		# lines!(ax, 1:seq_len, X_model[20, :])
 	end
+    ax = Axis(fig[5:7, 1:4])
+    temps = states[17, :, case]
+    temps_model = X_model[17, :]
+    lines!(ax, 1:seq_len, temps; label="Actual")
+    lines!(ax, 1:seq_len, temps_model; label="Model")
+    axislegend(ax, position=:lr)
+
+
+    Label(fig[0, 1:4], "Model Evaluation", fontsize = 24, font = :bold)
     return fig
 end
