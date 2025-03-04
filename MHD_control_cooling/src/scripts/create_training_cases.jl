@@ -5,11 +5,12 @@ includet("../MHD_control_cooling.jl")
 
 using .MHD_control_cooling
 
-DATA_ID = "2dexample-1"
+DATA_ID = "2dexample-2"
 
 struct SimInfo
     inputs::Vector{Float64}
     data_id::String
+    orig_case::String
 end
 
 using JSON, FileIO
@@ -17,7 +18,8 @@ using JSON, FileIO
 function save_sim_info(sim_info::SimInfo, file_path::String)
     json_data = JSON.json(Dict(
         "inputs" => sim_info.inputs,
-        "data_id" => sim_info.data_id
+        "data_id" => sim_info.data_id,
+        "orig_case" => sim_info.orig_case
         ))
     open(file_path, "w+") do file
         write(file, json_data)
@@ -39,7 +41,7 @@ end
 
 function run_random_case(save_dir::String)
     inputs = (rand(8).-0.5)*10
-    sim_info = SimInfo(inputs, DATA_ID)
+    sim_info = SimInfo(inputs, DATA_ID, MHD_control_cooling.CASE_DIR)
     run_sim(real_force_generator(inputs));
     save_case_data(CASE_DIR, save_dir, sim_info)
 end

@@ -12,7 +12,7 @@
 module MHD_control_cooling
 
 using Revise, JSON, LinearAlgebra
-using Revise, Glob, Logging, GLMakie
+using Revise, Glob, Logging
 using LinearAlgebra, BlackBoxOptim, Dates
 
 logger = ConsoleLogger(stderr, Logging.Info)
@@ -93,7 +93,6 @@ function main()
     field_string = create_force_field_string(F, centers_field_path, field_template_path)
     set_field_at_time("../$(CASE_DIR)", "0", field_string, "F")
     run_case("../$(CASE_DIR)", "./icoHeatExternalForce")
-    println(field_string)
 end
 
 end # module MHD_control_cooling

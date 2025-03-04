@@ -135,7 +135,11 @@ end
 
 function get_criteria_cell_indices(csv_path::String)::Vector{Int}
     df = CSV.read(csv_path, DataFrame)
-    return df.vtkOriginalPointIds
+    try 
+        return df.vtkOriginalPointIds
+    catch ArgumentError
+        return df.vtkOriginalCellIds
+    end
 end
 
 function sample_cells_scalar(cellsField::AbstractArray{Float64, 2}, cell_values::AbstractArray{Float64, 1}, sample_points::AbstractArray{Float64, 2})
