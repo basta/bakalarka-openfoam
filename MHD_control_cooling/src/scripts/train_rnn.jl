@@ -1,6 +1,6 @@
 using Flux: @functor
 using JLD2, Flux, Statistics, ProgressLogging, Optimisers, MLUtils, Plots, Logging, PrettyPrint
-using TensorBoardLogger, BSON, Dates, Wandb
+using TensorBoardLogger, BSON, Dates, Wandb, LinearAlgebra
 using CairoMakie
 
 
@@ -13,7 +13,7 @@ function create_X(dataset_path::String; single=false)::AbstractArray{Float32,3}
     @info "Loading dataset from $dataset_path "
     dataset = jldopen(dataset_path)["dataset"]
     if single
-        seq_len = 50
+        seq_len = 500
         X_combined = [dataset[2]; dataset[1]]
         X_combined = X_combined[:, 1:(size(X_combined,2)÷seq_len)*seq_len]
         X_combined = reshape(X_combined, 25, seq_len, size(X_combined,2) ÷ seq_len)
@@ -41,6 +41,14 @@ function create_X(dataset_path::String; single=false)::AbstractArray{Float32,3}
     end
     @info "Created X with shapes X:$(size(X_combined)) (features, seq_len, samples) "
     return X_combined |> gpu
+end
+
+function eigenvalue_regularization(W, K=0.1)
+    eigenvals = eigvals(W)
+    
+    penalty = sum(max.(0, real.(eigenvals)))
+    
+    return K * penalty
 end
 
 struct OuterProductLayer end
@@ -131,7 +139,8 @@ function seq_eval(model, x_batch, seq_len)
             x_batch[size(x_batch, 1)-7:end, t+1, :]
         ]
     end
-    loss_val /= (size(x_batch, 2) - 1)
+    loss_val /= min(size(x_batch, 2)-1, seq_len)
+    loss_val += eigenvalue_regularization(model[2][2][2].weight)
     return loss_val
 end
 
@@ -166,7 +175,7 @@ function train(model, X_train, X_test, epochs; LR=1e-3)
                 if e < 0
                     return piecewise_eval(m, x_batch)
                 else
-                    return seq_eval(m, x_batch, div(e,500))
+                    return seq_eval(m, x_batch, 1*(e÷1000))
                 end
             end
 
@@ -269,7 +278,9 @@ function main_eval(model::Union{String,Any}, case; single=true)
 		X_model[:, i+1] = next_state
 	end
 	for (i, fig_pos) in enumerate(vec([(i, j) for i in 1:4 for j in 1:4]))
-		ax = Axis(fig[fig_pos[1], fig_pos[2]])
+		ax = Axis(fig[fig_pos[1], fig_pos[2]],
+            xticks=0:1:seq_len,
+        )
 		
 		temps = states[i, :, case]
 		temps_model = X_model[i, :]
@@ -280,7 +291,6 @@ function main_eval(model::Union{String,Any}, case; single=true)
         ax.xlabel = "Time"
         ax.ylabel = "Value"
         axislegend(ax, position=:rb)
-		lines!(ax, 1:seq_len, X_model[20, :].+75)
 	end
     ax = Axis(fig[5:7, 1:4])
     temps = states[17, :, case]

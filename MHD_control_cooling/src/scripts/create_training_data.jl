@@ -26,14 +26,55 @@ function find_largest_smaller(arr::Vector{Int}, num::Int)
     return idx
 end
 
+function extract_inputs_from_file(file_path::String)
+    # Read the file content
+    content = read(file_path, String)
+    
+    # Find the INPUTS section
+    inputs_start = findfirst("// INPUTS:", content)
+    if inputs_start === nothing
+        return Float64[] # Return empty array if INPUTS section not found
+    end
+    
+    # Find the end of the INPUTS section (either "// Test" or "dimensions")
+    inputs_end = findfirst("// Test", content)
+    if inputs_end === nothing
+        inputs_end = findfirst("dimensions", content)
+    end
+    
+    if inputs_end === nothing
+        return Float64[] # Return empty array if end marker not found
+    end
+    
+    # Extract the text between INPUTS: and the end marker
+    inputs_section = content[inputs_start[end]+1:inputs_end[1]-1]
+    
+    # Extract numbers using regex
+    numbers = []
+    for line in split(inputs_section, '\n')
+        # Remove comments and trim whitespace
+        line = strip(replace(line, r"//\s*" => ""))
+        # Skip empty lines
+        if isempty(line)
+            continue
+        end
+        # Try to parse the number
+        try
+            push!(numbers, parse(Float64, line))
+        catch
+            # Skip lines that don't contain valid numbers
+        end
+    end
+    
+    return numbers
+end
+
 
 function create_u_Y_matrix_for_case(case_path, sample_points; inputs_file=nothing)
 
     if !isnothing(inputs_file)
         datas = jldopen(inputs_file)
-    else
-        inputs = JSON.parse(open(joinpath(case_path, "sim_info.json")))["inputs"]
-    end 
+    end
 
 
 
@@ -47,12 +88,23 @@ function create_u_Y_matrix_for_case(case_path, sample_points; inputs_file=nothin
     sort!(time_dirs, by = x -> parse(Int, x))
     Y = zeros(size(sample_points, 2)+1, length(time_dirs))
     times = []
+    inputs = zeros(8, length(time_dirs))
+    last_input = zeros(8)
     @progress for time_dir in time_dirs
         t = parse(Int, time_dir)
         push!(times, t)
         time_path = joinpath(case_path, time_dir)
         T = read_field_scalar(joinpath(time_path,
         "T"))
+        @info time_path
+        input_t = extract_inputs_from_file(joinpath(time_path, "F"))
+        if !isempty(input_t)
+            last_input = input_t
+        else 
+            input_t = last_input
+        end
+        inputs[:, t] = input_t
+
         Y[:, t] = T_out_sampler(cell_tree, cells, T, sample_points, case_path)
     end
     if !isnothing(inputs_file)
@@ -80,10 +132,10 @@ function main()
     return  dataset
 end
 
-function main_for_long(inputs_file)
+function main_for_long()
     dataset_out = "./data/dataset-long.jld2"
-    dataset = create_u_Y_matrix_for_case(("./data/cases/long2d"), 
-    EXAMPLE_2D_SAMPLE_POINTS; inputs_file=inputs_file)
+    dataset = create_u_Y_matrix_for_case(("./data/cases/long2d-2"), 
+    EXAMPLE_2D_SAMPLE_POINTS)
     jldsave(dataset_out; dataset=dataset)
     println("Dataset saved: $dataset_out")
     

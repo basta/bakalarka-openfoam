@@ -22,7 +22,7 @@ startTime       0;
 
 stopAt          endTime;
 
-endTime 94478; // written automatically
+endTime 19313; // written automatically
 
 deltaT          0.005;
 
