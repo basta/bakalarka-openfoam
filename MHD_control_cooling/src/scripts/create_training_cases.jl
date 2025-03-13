@@ -68,7 +68,9 @@ function run_infinite_case()
         push!(inputs, input)
     end
     jldsave("infinite_case.jld2"; inputs=inputs, F_times=F_times)
-    MHD_control_cooling.run_sim(Fs, F_times)
+    inputs = stack(inputs)
+    @info size(inputs)
+    MHD_control_cooling.run_sim(inputs, F_times)
 end
 
 function main(ininite=false)
@@ -78,6 +80,7 @@ function main(ininite=false)
     while true
         if ininite
             run_infinite_case()
+            break
         else
             run_random_case("./data/cases/$(DATA_ID)")
         end

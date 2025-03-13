@@ -47,7 +47,8 @@ function normalize_cells(cells)
     return normalized_cells
 end
 
-function create_force_field_string(F::Function, centers_field_path::String, field_template_path::String, normalize::Bool=false)
+function create_force_field_string(
+    F::Function, centers_field_path::String, field_template_path::String,inputs::AbstractVector{Float64}, normalize::Bool=false)
     cellsText = read(centers_field_path, String)
     cellStart = 0
     nCells = 0
@@ -76,7 +77,7 @@ function create_force_field_string(F::Function, centers_field_path::String, fiel
     end
 
     template = read(field_template_path, String)
-	data = Dict(:nCells=>nCells, :A=>A)
+	data = Dict(:nCells=>nCells, :A=>A, :input_vec=>inputs)
     tmp = Template(template, path=false)
     render = Base.invokelatest(tmp, init=data)
     return render
