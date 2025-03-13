@@ -9,50 +9,36 @@ global_logger(logger)
 
 wandb_logger = nothing
 
-function create_X(dataset_path::String)::AbstractArray{Float32,3}
+function create_X(dataset_path::String; single=false)::AbstractArray{Float32,3}
     @info "Loading dataset from $dataset_path "
     dataset = jldopen(dataset_path)["dataset"]
-    begin
-        n_features = size(dataset[1][2], 1)
-        n_time_steps = size(dataset[1][2], 2)
+    if single
+        seq_len = 50
+        X_combined = [dataset[2]; dataset[1]]
+        X_combined = X_combined[:, 1:(size(X_combined,2)÷seq_len)*seq_len]
+        X_combined = reshape(X_combined, 25, seq_len, size(X_combined,2) ÷ seq_len)
+    else 
+        n_features = size(dataset[end][2], 1)
+        n_time_steps = size(dataset[end][2], 2)
         n_samples = size(dataset, 1)
-        seq_len = 48
         X_samples = []
         U_samples = []
         Y_samples = []
         for S in 1:n_samples
-            u = dataset[S][1]
-            for t_start in (1-seq_len):(n_time_steps-seq_len-1)
-                if t_start < 1
-                    # zero start is complete nonsense as it hold unstable conditions
-                    continue # TODO zerostart disabled here
-                    seq_start = ones(n_features, -t_start) .* 0  #Initial conditions
-                    seq_start = seq_start .+ 5 .*(rand(size(seq_start)...) .- 0.5) 
-                    nonzero_seq_len = seq_len - 1 + t_start
-                else
-                    seq_start = zeros(n_features, 0)
-                    nonzero_seq_len = seq_len - 1
-                end
-                seq_nonzero = dataset[S][2][:, t_start+(seq_len-nonzero_seq_len):(t_start+seq_len)]
-                seq = [
-                    seq_start seq_nonzero
-                ]
-                u_seq = zeros(8, seq_len)
-                if size(seq_start, 2) > 0
-                    u_seq[:, size(seq_start, 2):end] .= u
-                else
-                    u_seq = repeat(u, 1, seq_len)
-                end
-                push!(X_samples, seq)
-                push!(U_samples, u_seq)
-                push!(Y_samples, dataset[S][2][:, t_start+seq_len+1])
+                X_sample = zeros(Float32, n_features, n_time_steps)
+                U_sample = zeros(Float32, 8, n_time_steps)
+            for t_start in 1:(n_time_steps)
+                u_idx = ((t_start-1) ÷ (div(n_time_steps, size(dataset[S][1], 1))+1))+1
+                X_sample[:, t_start] = dataset[S][2][:, t_start]
+                U_sample[:, t_start] =  dataset[S][1][u_idx]
             end
+            push!(X_samples, X_sample)
+            push!(U_samples, U_sample)
         end
+        U = stack(U_samples)
+        X = stack(X_samples)
+        X_combined = [X; U]
     end
-    U = stack(U_samples)
-    X = stack(X_samples)
-    Y = stack(Y_samples)
-    X_combined = [X; U]
     @info "Created X with shapes X:$(size(X_combined)) (features, seq_len, samples) "
     return X_combined |> gpu
 end
@@ -75,6 +61,26 @@ function (m::OuterProductLayer)(x)
     ]
 end
 
+function create_linear_model()
+    model = Chain(
+        OuterProductLayer(),
+        Parallel(
+            +,
+            x -> x[1:size(x, 1)-16, :],
+            Chain(
+                x -> x[1:size(x, 1)-16, :],
+                Dense(17=>17; bias=false),
+            ),
+            Chain(
+                x -> x[size(x, 1)-15:end, :],
+                Dense(16=>17; bias=true),
+            ),
+        )
+    )
+    model = fmap(gpu, model)
+    return model
+end
+
 function create_euler_model()
     model = Chain(
         OuterProductLayer(),
@@ -82,9 +88,9 @@ function create_euler_model()
             +,
             x -> x[1:size(x, 1)-16, :],
             Chain(
-                Dense(33=>128, relu),
+                Dense(33=>128, sigmoid_fast),
                 Dropout(0.2),
-                Dense(256=>17, relu),
+                Dense(128=>17),
             )
         )
     )
@@ -113,11 +119,11 @@ function piecewise_eval(model, x_batch)
     return loss_val
 end
 
-function seq_eval(model, x_batch)
+function seq_eval(model, x_batch, seq_len)
     loss_val = 0
     state = x_batch[:,1,:]
-    for t in 2:size(x_batch, 2)-1
-        y = x_batch[1:size(x_batch, 1)-8, t+1, :]
+    for t in 2:min(size(x_batch, 2)-1, seq_len)
+        y = x_batch[1:size(x_batch, 1)-8, t, :]
         y_pred = model(state)
         loss_val += Flux.mse(y_pred, y)
         state = [
@@ -157,12 +163,13 @@ function train(model, X_train, X_test, epochs; LR=1e-3)
             # Calculate loss and gradients
             val, grads = Flux.withgradient(model) do m
                 # return piecewise_eval(model, x_batch)
-                if e < 1000
+                if e < 0
                     return piecewise_eval(m, x_batch)
                 else
-                    return seq_eval(m, x_batch)
+                    return seq_eval(m, x_batch, div(e,500))
                 end
             end
+
 
             # Update model parameters
             push!(batch_losses, val)
@@ -175,7 +182,8 @@ function train(model, X_train, X_test, epochs; LR=1e-3)
         batch_test_losses = []
         for (x_batch) in X_test
             Flux.reset!(model)
-            loss_val = seq_eval(model, x_batch)
+            loss_val = seq_eval(model, x_batch, 99999)
+            # loss_val = piecewise_eval(model, x_batch)
 
             # loss_val = loss(state[1:n_features, :], y_batch)
 
@@ -209,20 +217,24 @@ function create_dataloaders(X)::Tuple{Flux.DataLoader,Flux.DataLoader}
 end
 
 
-EPOCHS = 9999
-DATASET_PATH = "./data/dataset.jld2"
+EPOCHS = 99999
+DATASET_PATH = "./data/dataset-long.jld2"
 
-function main(model=nothing, LR=1e-3)
+function main(;dataset=nothing, model=nothing, LR=1e-3, single=false)
+    if isnothing(dataset)
+        dataset = DATASET_PATH
+    end
     try
         global wandb_logger = WandbLogger(;project = "Bakalarka",
                         name = "Bakarlaka-$(now())",
                         )
         if isnothing(model)
-            model = create_euler_model()
+            # model = create_euler_model()
 #             model = create_model()
+            model = create_linear_model()
         end
 
-        X = create_X(DATASET_PATH)
+        X = create_X(dataset; single=single)
         X_train, X_test = create_dataloaders(X)
         train(model, X_train, X_test, EPOCHS, LR=LR)
     finally
@@ -231,11 +243,11 @@ function main(model=nothing, LR=1e-3)
     end
 end
 
-function main_eval(model::Union{String,Any}, case)
+function main_eval(model::Union{String,Any}, case; single=true)
     if typeof(model) == String
         model = BSON.load(model)[:model]
     end
-    X = create_X(DATASET_PATH)
+    X = create_X(DATASET_PATH; single=single)
 
     seq_len = size(X,2)
 
@@ -268,7 +280,7 @@ function main_eval(model::Union{String,Any}, case)
         ax.xlabel = "Time"
         ax.ylabel = "Value"
         axislegend(ax, position=:rb)
-		# lines!(ax, 1:seq_len, X_model[20, :])
+		lines!(ax, 1:seq_len, X_model[20, :].+75)
 	end
     ax = Axis(fig[5:7, 1:4])
     temps = states[17, :, case]
