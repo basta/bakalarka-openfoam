@@ -119,7 +119,9 @@ function seq_eval(model, x_batch)
     for t in 2:size(x_batch, 2)-1
         y = x_batch[1:size(x_batch, 1)-8, t+1, :]
         y_pred = model(state)
-        loss_val += Flux.mse(y_pred, y)
+        # Assign higher weights to the last output
+        loss_val += Flux.mse(y_pred[1:end-1, :],  y[1:end-1, :])
+        loss_val += Flux.mse(y_pred[end, :], y[end, :])*16
         state = [
             y_pred;
             x_batch[size(x_batch, 1)-7:end, t+1, :]
