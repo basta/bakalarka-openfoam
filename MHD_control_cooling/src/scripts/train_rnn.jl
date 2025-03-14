@@ -13,7 +13,7 @@ function create_X(dataset_path::String; single=false)::AbstractArray{Float32,3}
     @info "Loading dataset from $dataset_path "
     dataset = jldopen(dataset_path)["dataset"]
     if single
-        seq_len = 500
+        seq_len = 50
         X_combined = [dataset[2]; dataset[1]]
         X_combined = X_combined[:, 1:(size(X_combined,2)÷seq_len)*seq_len]
         X_combined = reshape(X_combined, 25, seq_len, size(X_combined,2) ÷ seq_len)
@@ -133,7 +133,11 @@ function seq_eval(model, x_batch, seq_len)
     for t in 2:min(size(x_batch, 2)-1, seq_len)
         y = x_batch[1:size(x_batch, 1)-8, t, :]
         y_pred = model(state)
-        loss_val += Flux.mse(y_pred, y)
+        weights = ones(size(y))
+        weights[end, :] .= 5.0  # Increase weight for the last element
+        
+        # Calculate weighted MSE
+        loss_val += mean((y_pred .- y).^2 .* weights)
         state = [
             y_pred;
             x_batch[size(x_batch, 1)-7:end, t+1, :]
