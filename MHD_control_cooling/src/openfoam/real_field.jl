@@ -80,7 +80,7 @@ function create_trees(jld_dir::String)
     return ElMagneticData(maginputs)
 end
 
-function get_force_at_point(elMagData::ElMagneticData, point::Array{Float64, 1}, θ::Vector{<:Number}, per_partes_out = false)
+function get_force_at_point(elMagData::ElMagneticData, point::Array{Float64, 1}, θ::AbstractVector{<:Number}, per_partes_out = false)
     F = zeros(3)
     Fs = zeros(3, 8*8)
     i = 0
@@ -145,4 +145,86 @@ end
 function sample_cells_scalar(cellsField::AbstractArray{Float64, 2}, cell_values::AbstractArray{Float64, 1}, sample_points::AbstractArray{Float64, 2})
     nn_tree = KDTree(cellsField)
     return interpolate_tree(nn_tree, cell_values, sample_points)
+end
+
+# function scalar_hotspots_F_generator(hotspots::AbstractArray{Real, 2}, sizes::AbstractVector{Real}, peaks::AbstractVector{Real})
+#     return x -> sum(peaks .* exp.())
+# end
+
+function set_temp_field(F::Function, casepath::String, t::Int=0; normalize::Bool=false)
+    centers_field_path = joinpath(casepath, string(t))
+    field_string = create_force_field_string(F, centers_field_path, "./data/fieldsTemplateT", normalize)
+end
+
+function set_field_uniform(casepath::String, time::Int, field::String, value::String)
+    input_file = joinpath(casepath, string(time), field)
+    pattern = r"internalField\s+uniform\s+(\w+);"
+    output_file = "/tmp/tmp_T"
+
+    open(output_file, "w+") do out_file
+        for line in eachline(input_file)
+            if occursin("internalField", line) && (m = match(pattern, line)) !== nothing
+                # Replace the matched value with the new value
+                new_line = replace(line, "uniform $(m[1]);" => "uniform $value;")
+                write(out_file, new_line * "\n")
+            else
+                write(out_file, line * "\n")
+            end
+        end
+    end
+    mv(output_file, input_file, force=true)
+end
+
+function set_control_dict_entry(casepath::String, key::String, value::Any)
+    if typeof(value) != String
+        value = string(value)
+    end
+    input_file = joinpath(casepath, "system/controlDict")
+    pattern = Regex("$key\\s+(\\w+);")
+    output_file = "/tmp/tmp_case"
+
+    found = false
+
+    open(output_file, "w+") do out_file
+        for line in eachline(input_file)
+            if (m = match(pattern, line)) !== nothing
+                # Replace the matched value with the new value
+                new_line = "$key $value; // written automatically"
+                println(new_line)
+                write(out_file, new_line * "\n")
+                if found
+                    @warn "Found multiple matches for $key setting"
+                end
+                found = true
+            else
+                write(out_file, line * "\n")
+            end
+        end
+    end
+    if !found
+        @warn "Tried to change setting $key but found none"
+    end
+    mv(output_file, input_file, force=true)
+end
+
+function read_control_dict_entry(casepath::String, key::String)::String
+    input_file = joinpath(casepath, "system/controlDict")
+    pattern = Regex("$key\\s+(\\w+);")
+    found = false
+    val = ""
+    for line in eachline(input_file)
+        if (m = match(pattern, line)) !== nothing
+            # Replace the matched value with the new value
+            val = m[1]
+            if found
+                @warn "Found multiple matches for $key setting"
+            end
+            found = true
+        end
+    end
+    
+    if !found
+        @error "Tried to read setting $key but found none"
+    end
+    return val
 end

@@ -1,7 +1,16 @@
 using OteraEngine
 using LinearAlgebra
 using Logging
+import Base: isnumeric
 
+function isnumeric(str::AbstractString)
+    try
+        parse(Float64, str)
+        return true
+    catch
+        return false
+    end
+end
 
 function lineToVec(line)
 	coords = split(strip(line, ['(', ')']))
@@ -38,7 +47,8 @@ function normalize_cells(cells)
     return normalized_cells
 end
 
-function create_force_field_string(F::Function, centers_field_path::String, field_template_path::String, normalize::Bool=false)
+function create_force_field_string(
+    F::Function, centers_field_path::String, field_template_path::String,inputs::AbstractVector{Float64}, normalize::Bool=false)
     cellsText = read(centers_field_path, String)
     cellStart = 0
     nCells = 0
@@ -67,11 +77,12 @@ function create_force_field_string(F::Function, centers_field_path::String, fiel
     end
 
     template = read(field_template_path, String)
-	data = Dict(:nCells=>nCells, :A=>A)
+	data = Dict(:nCells=>nCells, :A=>A, :input_vec=>inputs)
     tmp = Template(template, path=false)
     render = Base.invokelatest(tmp, init=data)
     return render
 end
+
 
 function read_field_vector(field_path::String)::Matrix
     cellsText = read(field_path, String)
@@ -121,6 +132,13 @@ function get_slice_xmin(cells::Matrix)
     return findall(is_xmin)
 end
 
+
+function get_last_fields_time(case_path::String)::String
+    dirs = readdir(case_path)
+    filter!(isnumeric, dirs)
+    sort!(dirs, by=x -> parse(Int, x))
+    return dirs[end]
+end
 
 function set_field_at_time(case_path::String, time::String, field_file_string::String, field_name::String)
     if !isdir(case_path)
@@ -201,3 +219,11 @@ function transform_coordinate(
 end
 
 
+function clean_case(case_path::String)
+    for dir in readdir(case_path)
+        if isnumeric(dir) && parse(Int, dir) != 0
+            # @warn "Would remove $dir"
+                rm(joinpath(case_path, dir); recursive=true)
+        end
+    end
+end
