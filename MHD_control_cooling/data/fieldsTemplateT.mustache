@@ -1,0 +1,49 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM                                       |
+|  \\    /   O peration     | Version:  v2312                               |
+|   \\  /    A nd           | Website:  www.openfoam.com                    |
+|    \\/     M anipulation  |                                               |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volVectorField;
+    location    "0";
+    object      F;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 0 0 1 0 0 0];
+
+internalField   nonuniform List<scalar>
+{{nCells}}                                   // Number of cells
+(
+    {% for a in A %}
+        a
+    {% end %}
+);
+
+    boundaryField
+    {
+    fixedWalls
+    {
+    type            zeroGradient;
+    }
+    hotEnd
+    {
+    type            fixedGradient;
+    gradient        uniform 1000;
+    }
+    coldEnd
+    {
+    type            fixedValue;
+    value           uniform 0;
+    }
+    frontAndBack
+    {
+    type            empty;
+    }
+    }
+// ************************************************************************* //

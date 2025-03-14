@@ -1,4 +1,4 @@
-using Revise, JSON, JLD2
+using Revise, JSON, JLD2, ProgressLogging
 #include("../MHD_control_cooling.jl")
 include("../openfoam/field_utils.jl")
 include("../openfoam/real_field.jl")
@@ -10,14 +10,7 @@ EXAMPLE_2D_SAMPLE_POINTS = stack([
     [x;y;0.005] for x in 0.025:0.025:0.1 for y in 0.025:0.025:0.1
 ])
 
-function isnumeric(str)
-    try
-        parse(Float64, str)
-        return true
-    catch
-        return false
-    end
-end
+
 
 
 function T_out_sampler(tree, cells, scalar_field, sample_points, case_path)
@@ -27,9 +20,62 @@ function T_out_sampler(tree, cells, scalar_field, sample_points, case_path)
     return [interpolate_tree(tree, scalar_field, sample_points) criterium]
 end
 
-function create_u_Y_matrix_for_case(case_path, sample_points) 
+function find_largest_smaller(arr::Vector{Int}, num::Int)
+    idx = searchsortedlast(arr, num)
+    idx > 0 && arr[idx] >= num && (idx -= 1)
+    return idx
+end
 
-    inputs = JSON.parse(open(joinpath(case_path, "sim_info.json")))["inputs"]
+function extract_inputs_from_file(file_path::String)
+    # Read the file content
+    content = read(file_path, String)
+    
+    # Find the INPUTS section
+    inputs_start = findfirst("// INPUTS:", content)
+    if inputs_start === nothing
+        return Float64[] # Return empty array if INPUTS section not found
+    end
+    
+    # Find the end of the INPUTS section (either "// Test" or "dimensions")
+    inputs_end = findfirst("// Test", content)
+    if inputs_end === nothing
+        inputs_end = findfirst("dimensions", content)
+    end
+    
+    if inputs_end === nothing
+        return Float64[] # Return empty array if end marker not found
+    end
+    
+    # Extract the text between INPUTS: and the end marker
+    inputs_section = content[inputs_start[end]+1:inputs_end[1]-1]
+    
+    # Extract numbers using regex
+    numbers = []
+    for line in split(inputs_section, '\n')
+        # Remove comments and trim whitespace
+        line = strip(replace(line, r"//\s*" => ""))
+        # Skip empty lines
+        if isempty(line)
+            continue
+        end
+        # Try to parse the number
+        try
+            push!(numbers, parse(Float64, line))
+        catch
+            # Skip lines that don't contain valid numbers
+        end
+    end
+    
+    return numbers
+end
+
+
+function create_u_Y_matrix_for_case(case_path, sample_points; inputs_file=nothing)
+
+    if !isnothing(inputs_file)
+        datas = jldopen(inputs_file)
+    end
+
 
 
     time_dirs = filter(
@@ -41,19 +87,57 @@ function create_u_Y_matrix_for_case(case_path, sample_points)
 
     sort!(time_dirs, by = x -> parse(Int, x))
     Y = zeros(size(sample_points, 2)+1, length(time_dirs))
-    for time_dir in time_dirs
+    times = []
+    inputs = zeros(8, length(time_dirs))
+    last_input = zeros(8)
+    @progress for time_dir in time_dirs
         t = parse(Int, time_dir)
+        push!(times, t)
         time_path = joinpath(case_path, time_dir)
         T = read_field_scalar(joinpath(time_path,
         "T"))
+        @info time_path
+        input_t = extract_inputs_from_file(joinpath(time_path, "F"))
+        if !isempty(input_t)
+            last_input = input_t
+        else 
+            input_t = last_input
+        end
+        inputs[:, t] = input_t
+
         Y[:, t] = T_out_sampler(cell_tree, cells, T, sample_points, case_path)
+    end
+    if !isnothing(inputs_file)
+        inputs_in = datas["inputs"]
+        F_times = datas["F_times"]
+        inputs = zeros(size(inputs_in[1], 1), length(times))
+        for t in times
+            idx = find_largest_smaller(F_times, t-2) + 1 #TODO the jld was created wrong
+            if (t < 100)
+                @info "Time:$t idx:$idx"
+            end
+            inputs[:, t] = inputs_in[idx]
+        end
     end
     return inputs, Y
 end
 
 function main()
-    dataset = [create_u_Y_matrix_for_case(joinpath("./data/cases/2dexample-1", case), EXAMPLE_2D_SAMPLE_POINTS) for case in readdir("./data/cases/2dexample-1")]
-    jldsave("./data/dataset.jld2"; dataset=dataset)
-    dataset
+    dataset_out = "./data/dataset-long.jld2"
+    dataset = [create_u_Y_matrix_for_case(joinpath("./data/cases/2dexample-dynamic",
+     case),
+     EXAMPLE_2D_SAMPLE_POINTS) for case in readdir("./data/cases/2dexample-dynamic")]
+    jldsave(dataset_out; dataset=dataset)
+    println("Dataset saved: $dataset_out")
+    return  dataset
 end
 
+function main_for_long()
+    dataset_out = "./data/dataset-long.jld2"
+    dataset = create_u_Y_matrix_for_case(("./data/cases/long2d-2"), 
+    EXAMPLE_2D_SAMPLE_POINTS)
+    jldsave(dataset_out; dataset=dataset)
+    println("Dataset saved: $dataset_out")
+    
+    return dataset
+end
