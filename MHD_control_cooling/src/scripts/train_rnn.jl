@@ -1,8 +1,9 @@
 using Flux: @functor
 using JLD2, Flux, Statistics, ProgressLogging, Optimisers, MLUtils, Plots, Logging, PrettyPrint
-using TensorBoardLogger, BSON, Dates, Wandb, LinearAlgebra
+using TensorBoardLogger, BSON, Dates, Wandb, LinearAlgebra, Zygote
 using CairoMakie
 
+include("../ml/layers.jl")
 
 logger = ConsoleLogger(stderr, Logging.Info)
 global_logger(logger)
@@ -51,6 +52,7 @@ function eigenvalue_regularization(W, K=0.1)
     return K * penalty
 end
 
+
 struct OuterProductLayer end
 Flux.@functor OuterProductLayer  # Enables Flux integration and pretty printing
 
@@ -69,6 +71,26 @@ function (m::OuterProductLayer)(x)
     ]
 end
 
+function create_linear_model()
+    model = Chain(
+        OuterProductLayer(),
+        Parallel(
+            +,
+            x -> x[1:size(x, 1)-16, :],
+            Chain(
+                x -> x[1:size(x, 1)-16, :], # lin temperature  model
+                Dense(17=>17; bias=false),
+            ),
+            Chain(
+                x -> x[size(x, 1)-15:end, :], #lin input model with bias
+                Dense(16=>17; bias=true),
+            ),
+        )
+    )
+    model = fmap(gpu, model)
+    return model
+end
+
 function create_linear_complex_T_model()
         model = Chain(
         OuterProductLayer(),
@@ -85,9 +107,10 @@ function create_linear_complex_T_model()
                 Dense(16=>17; bias=true),
             ),
             Chain(
-                Dense(33=>64, relu),
+                # Dense(33=>64, relu),
+                RNN(33=>64, tanh_fast),
                 Dense(64=>1),
-                x -> [ones(16, size(x,2)); x],
+                x -> [zeros(16, size(x,2)); x],
             )
         )
     )
@@ -98,7 +121,6 @@ end
 function create_linear_model()
     model = Chain(
         OuterProductLayer(),
-        # BatchNorm(33),
         Parallel(
             +,
             x -> x[1:size(x, 1)-16, :],
@@ -162,7 +184,7 @@ function seq_eval(model, x_batch, seq_len)
         y_pred = model(state)
         # Assign higher weights to the last output
         state_loss += Flux.mae(y_pred[1:end-1, :]./y[1:end-1, :],  y[1:end-1, :]./y[1:end-1, :])
-        crit_loss += Flux.mae(y_pred[end, :]./y[end, :], y[end, :]./y[end, :])*1
+        crit_loss += Flux.mae(y_pred[end, :]./y[end, :], y[end, :]./y[end, :])*3
         
         state = [
             y_pred;
