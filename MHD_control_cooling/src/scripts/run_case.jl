@@ -4,6 +4,9 @@ using .MHD_control_cooling
 function main()
     centers_field_path = "$(MHD_control_cooling.CASE_DIR)0/C"
     field_template_path = "../data/fieldsTemplate.mustache"
-    Fs = [real_force_generator(rand(8)), real_force_generator(rand(8))]
-    run_sim(Fs, [0, 20])
+    force = [-10; 10;-10;10;10;10;-10;10] # min first
+    force = [-10; 10;-10;10;-10;-10;10;-10] # max first
+    force = Float64.(force)
+    Fs = [force force]
+    run_sim(Fs, [0,50])
 end
