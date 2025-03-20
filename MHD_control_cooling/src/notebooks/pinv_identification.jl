@@ -51,6 +51,7 @@ function eval_solution(X_combined, solution)
 	Label(fig[-1, :], "Comparison of linear model and simulation data", fontsize=24, font="Arial", padding=(0, 0, 0, 0))
 	
 	save("fig.svg", fig)
+	@info "Final state is" states[end]
 	fig
 end
 
@@ -73,7 +74,7 @@ solution = X_next*pinv(X_combined)
 begin
 	A_sol = solution[:, 1:17]
 	B_sol = solution[:, 18:33]
-	C_sol = solution[:, end];
+	S_sol = solution[:, end];
 end
 
 # ╔═╡ c32bad11-574c-4182-9288-caa79b36e395
@@ -130,8 +131,22 @@ u_e, u_m = let
 	u_e, u_m
 end
 
+# ╔═╡ a46a786e-f154-4aa6-9c54-2ee7751654fd
+let
+	residuals = []
+	for cutoff in 1:100:size(X_combined,2)
+		solution = X_next[:,1:cutoff]*pinv(X_combined[:,1:cutoff])
+		res = sum(mean(abs.((solution * X_combined ) .- X_next), dims=2))
+		push!(residuals, res)
+	end
+	fig = Figure()
+	ax = Axis(fig[1,1])
+	lines!(ax, (residuals[1:end]))
+	fig
+end
+
 # ╔═╡ a1028443-272f-43a1-925a-afd1662bed5f
-mean(abs.((solution * X_combined ) .- X_next), dims=2)
+sum(mean(abs.((solution * X_combined ) .- X_next), dims=2))
 
 # ╔═╡ 8a2bd001-b371-439a-ba64-907deaee0769
 let
@@ -287,6 +302,112 @@ let
 	fig
 end
 
+# ╔═╡ 3d89abd4-ec13-47f0-a290-0e19c104eb63
+function solve_input(A, B, ref, C, S, iters=100, starts=10, max_inp=10)
+	# Expects u_el times v_mag
+	# B = diagm(C)*B
+	ref = C.*ref
+	best_in = zeros(8)
+	residuals = zeros(iters, starts)
+	best_residual = 99999999999999
+	for start in 1:starts
+		u = rand(4)
+		v = rand(4)
+		is_mag = false
+		res = []
+		for i in 1:iters
+			is_mag = !is_mag
+			if !is_mag
+				el_mat = sum([
+					v[1]*B[:, 1:4],
+					v[2]*B[:, 5:8],
+					v[3]*B[:, 9:12],
+					v[4]*B[:, 13:16],
+				])
+				
+				u = pinv(el_mat)*(ref - A*ref - S_sol)
+				u = clamp.(u,-max_inp, max_inp)
+			else
+				mag_mat = sum([
+					u[1]*B[:,[1,5,9,13]],
+					u[2]*B[:,[2,6,10,14]],
+					u[3]*B[:,[3,7,11,15]],
+					u[4]*B[:,[4,8,12,16]]
+				])
+				# v = mag_mat \ ref
+				v = pinv(mag_mat)*(ref - A*ref - S_sol)
+				
+				v = clamp.(v,-max_inp, max_inp)
+				
+			end
+			residuals[i, start] = norm(ref - inv(I - A)*(B*vec(best_in[1:4]*best_in[5:8]')+S))
+		end
+		fin_residual = norm(ref -inv(I - A)*(B*vec(best_in[1:4]*best_in[5:8]')+S))
+		if fin_residual < best_residual
+			best_in = [u; v;]
+			best_residual = fin_residual
+		end
+	end
+	return best_in, residuals, inv(I - A)*(B*vec(best_in[1:4]*best_in[5:8]')+S)
+end
+
+# ╔═╡ da1bb73f-1a17-4d1d-9eb4-a47514b1535f
+inp,res,final_r = let
+	ss = inv(I - A_sol)*(S_sol)
+	C = [1;0;0;0; zeros(13)]
+	r = ss
+	
+	
+	# C = [ones(16);0]
+	# r = [0;0;0;0; zeros(13)]
+	inp, res, final_r = solve_input(A_sol, B_sol, r, C, S_sol, 100, 50, 5);
+	inp,res,final_r
+end
+
+# ╔═╡ a886c61f-bc43-4d0f-a67f-e046e8a9e946
+minimum(res)
+
+# ╔═╡ 8abb11a0-890e-4344-b26e-7210bacba58b
+final_r
+
+# ╔═╡ 8ef70851-06be-4bc3-82ef-1a25c2140a6b
+
+
+# ╔═╡ 700a5d53-cc8b-4bac-a7c3-1fc64b5463f2
+let
+	X_optimal = copy(X_combined)
+	X_optimal[18:33, :] .= vec(inp[1:4]*inp[5:8]')
+	# X_optimal[18:33, :] .= vec(inp[5:8]*inp[1:4]')
+	
+	start = 100
+	len = 700
+	eval_solution(X_optimal[:, start:start+len], solution)
+end
+
+# ╔═╡ bb38a269-d5ca-4e70-9285-11cd0ff34f7e
+let
+	u = rand(4)
+	B = B_sol
+	ss = inv(I - A_sol)*(S_sol)
+	ref = ss
+	mag_mat = sum([
+		u[1]*B[:,[1,5,9,13]],
+		u[2]*B[:,[2,6,10,14]],
+		u[3]*B[:,[3,7,11,15]],
+		u[4]*B[:,[4,8,12,16]]
+	])
+	# v = mag_mat \ ref
+	v = pinv(mag_mat)*(ref - A*ref - S_sol)
+	v = zeros(4)
+	
+	best_in = [u;v]
+	inv(I - A)*(B*vec(best_in[1:4]*best_in[5:8]')+S_sol)
+	best_in[1:4]*best_in[5:8]'
+end
+
+# ╔═╡ 99dfdb21-51dc-4ff1-bdaa-57407eeeb81c
+diagm([1 zeros(16)']')*B_sol
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -311,7 +432,7 @@ Statistics = "~1.11.1"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.4"
+julia_version = "1.11.3"
 manifest_format = "2.0"
 project_hash = "215bce6b2ffabaded70aca88b4a36ca2a0858681"
 
@@ -993,9 +1114,9 @@ version = "0.8.3"
 
 [[deps.FilePathsBase]]
 deps = ["Compat", "Dates"]
-git-tree-sha1 = "2ec417fc319faa2d768621085cc1feebbdee686b"
+git-tree-sha1 = "3bab2c5aa25e7840a4b065805c0cdfc01f3068d2"
 uuid = "48062228-2e41-5def-b9a4-89aafe57970f"
-version = "0.9.23"
+version = "0.9.24"
 weakdeps = ["Mmap", "Test"]
 
     [deps.FilePathsBase.extensions]
@@ -1689,9 +1810,9 @@ version = "1.11.0"
 
 [[deps.MathOptInterface]]
 deps = ["BenchmarkTools", "CodecBzip2", "CodecZlib", "DataStructures", "ForwardDiff", "JSON3", "LinearAlgebra", "MutableArithmetics", "NaNMath", "OrderedCollections", "PrecompileTools", "Printf", "SparseArrays", "SpecialFunctions", "Test"]
-git-tree-sha1 = "6723502b2135aa492a65be9633e694482a340ee7"
+git-tree-sha1 = "b691a4b4c8ef7a4fba051d546040bfd2ae6f0719"
 uuid = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
-version = "1.38.0"
+version = "1.37.2"
 
 [[deps.MathTeXEngine]]
 deps = ["AbstractTrees", "Automa", "DataStructures", "FreeTypeAbstraction", "GeometryBasics", "LaTeXStrings", "REPL", "RelocatableFolders", "UnicodeFun"]
@@ -1907,7 +2028,7 @@ version = "3.2.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+4"
+version = "0.8.1+2"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -2603,9 +2724,9 @@ version = "0.1.1"
 
 [[deps.Static]]
 deps = ["CommonWorldInvalidations", "IfElse", "PrecompileTools"]
-git-tree-sha1 = "f737d444cb0ad07e61b3c1bef8eb91203c321eff"
+git-tree-sha1 = "87d51a3ee9a4b0d2fe054bdd3fc2436258db2603"
 uuid = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
-version = "1.2.0"
+version = "1.1.1"
 
 [[deps.StaticArrayInterface]]
 deps = ["ArrayInterface", "Compat", "IfElse", "LinearAlgebra", "PrecompileTools", "Static"]
@@ -2949,9 +3070,9 @@ version = "2.0.3+0"
 
 [[deps.libpng_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Zlib_jll"]
-git-tree-sha1 = "055a96774f383318750a1a5e10fd4151f04c29c5"
+git-tree-sha1 = "068dfe202b0a05b8332f1e8e6b4080684b9c7700"
 uuid = "b53b4c65-9356-5827-b1ea-8c7a1a84506f"
-version = "1.6.46+0"
+version = "1.6.47+0"
 
 [[deps.libsixel_jll]]
 deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "Libdl", "libpng_jll"]
@@ -3008,6 +3129,7 @@ version = "3.6.0+0"
 # ╠═5d864b89-5b85-473d-b069-de56eb35b818
 # ╠═5cb8ee92-4a70-47c2-afd4-fa8291d7c83e
 # ╠═a76d2bed-b336-4404-8308-25c75b89dcd8
+# ╠═a46a786e-f154-4aa6-9c54-2ee7751654fd
 # ╠═50cdc015-09f8-497a-9303-dc8a48b836f9
 # ╠═a1028443-272f-43a1-925a-afd1662bed5f
 # ╠═9584aa87-d692-4c29-967e-ca3fbd337da7
@@ -3024,5 +3146,13 @@ version = "3.6.0+0"
 # ╠═c32bad11-574c-4182-9288-caa79b36e395
 # ╠═80831320-3d45-4232-bb1b-aeb1e0195c7b
 # ╠═75636f3a-54b2-4e72-8ae2-fcb9bdebe7e6
+# ╠═3d89abd4-ec13-47f0-a290-0e19c104eb63
+# ╠═da1bb73f-1a17-4d1d-9eb4-a47514b1535f
+# ╠═a886c61f-bc43-4d0f-a67f-e046e8a9e946
+# ╠═8abb11a0-890e-4344-b26e-7210bacba58b
+# ╠═8ef70851-06be-4bc3-82ef-1a25c2140a6b
+# ╠═700a5d53-cc8b-4bac-a7c3-1fc64b5463f2
+# ╠═bb38a269-d5ca-4e70-9285-11cd0ff34f7e
+# ╠═99dfdb21-51dc-4ff1-bdaa-57407eeeb81c
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
