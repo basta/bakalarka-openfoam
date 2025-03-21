@@ -4,11 +4,32 @@
 using Markdown
 using InteractiveUtils
 
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    #! format: off
+    quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+    #! format: on
+end
+
 # ╔═╡ abbfee84-0188-11f0-0a28-679196b7d942
-using LinearAlgebra, JLD2, Statistics, CairoMakie, ControlSystems
+using LinearAlgebra, JLD2, Statistics, CairoMakie, ControlSystems, RollingFunctions
+
+# ╔═╡ 862e5d81-2656-4375-8487-d10d97e5aece
+using PlutoUI
 
 # ╔═╡ 79feaa84-84ab-4e6a-bc2f-c4d157e208d8
-U_data = jldopen("../../data/dataset-long.jld2")["dataset"][1]
+U_data = jldopen("../../data/dataset-live2.jld2")["dataset"][1]
+
+# ╔═╡ cd76f68e-45ab-41d6-9830-c4f8caf1a755
+X_data = jldopen("../../data/dataset-live2.jld2")["dataset"][2]
+
+# ╔═╡ 30bd179e-7042-45ca-b82b-4ed25fd9ea6d
+X_data[:,2000:end]
 
 # ╔═╡ 84a20361-e435-426d-b3b2-aa4313a097b9
 U = let
@@ -19,44 +40,6 @@ U = let
 	end
 	stack(cols)[:, 1:end-1]
 end
-
-# ╔═╡ 9584aa87-d692-4c29-967e-ca3fbd337da7
-function eval_solution(X_combined, solution)
-	fig = Figure(resolution=(800, 800), title="Comparison of linear model and simulation data")
-	state = X_combined[:, 1]
-	states = [state]
-	evals = [state]
-	# state  = vcat(state,1)
-	for x in eachcol(X_combined)
-		# @info size(state)
-		state = solution*state
-		state = [state; x[18:33];1]
-		push!(states, state)
-		push!(evals, x)
-	end
-	states_sim = stack(states)
-	states_eval =  stack(evals)
-	@info states_eval[1,size(X_combined,2)]
-	for i in 1:16
-		if i == 13
-			continue
-		end
-		ax = Axis(fig[(i-1)%4,(i-1) ÷ 4])
-		l1 = lines!(1:size(X_combined,2), states_sim[i, 1:size(X_combined,2)])
-		l2 = lines!(1:size(X_combined,2), states_eval[i, 1:size(X_combined,2)])
-		Legend(fig[0,3], [l1,l2], ["Simulation             ", "Linear model"])
-	end
-	Label(fig[4, 0:3], "Time [s]")
-	Label(fig[0:3, -1], "Temperature [°C]", rotation=pi/2)
-	Label(fig[-1, :], "Comparison of linear model and simulation data", fontsize=24, font="Arial", padding=(0, 0, 0, 0))
-	
-	save("fig.svg", fig)
-	@info "Final state is" states[end]
-	fig
-end
-
-# ╔═╡ 3f2b487e-a659-46ff-b527-78db1bcbc422
-X_data =  jldopen("../../data/dataset-long.jld2")["dataset"][2]
 
 # ╔═╡ d25e1020-036e-4357-9fee-938e916f0098
 X_next = X_data[:, 2:end]
@@ -69,6 +52,20 @@ X_combined = [X; U; ones(1,size(X,2))]
 
 # ╔═╡ a76d2bed-b336-4404-8308-25c75b89dcd8
 solution = X_next*pinv(X_combined)
+
+# ╔═╡ a46a786e-f154-4aa6-9c54-2ee7751654fd
+let
+	residuals = []
+	for cutoff in 1:10000:size(X_combined,2)
+		solution = X_next[:,1:cutoff]*pinv(X_combined[:,1:cutoff])
+		res = sum(mean(abs.((solution * X_combined ) .- X_next), dims=2))
+		push!(residuals, res)
+	end
+	fig = Figure()
+	ax = Axis(fig[1,1])
+	lines!(ax, (residuals[1:end]))
+	fig
+end
 
 # ╔═╡ 50cdc015-09f8-497a-9303-dc8a48b836f9
 begin
@@ -131,27 +128,61 @@ u_e, u_m = let
 	u_e, u_m
 end
 
-# ╔═╡ a46a786e-f154-4aa6-9c54-2ee7751654fd
-let
-	residuals = []
-	for cutoff in 1:100:size(X_combined,2)
-		solution = X_next[:,1:cutoff]*pinv(X_combined[:,1:cutoff])
-		res = sum(mean(abs.((solution * X_combined ) .- X_next), dims=2))
-		push!(residuals, res)
-	end
-	fig = Figure()
-	ax = Axis(fig[1,1])
-	lines!(ax, (residuals[1:end]))
-	fig
-end
-
 # ╔═╡ a1028443-272f-43a1-925a-afd1662bed5f
 sum(mean(abs.((solution * X_combined ) .- X_next), dims=2))
 
+# ╔═╡ 9584aa87-d692-4c29-967e-ca3fbd337da7
+function eval_solution(X_combined, solution; n_moving=0)
+	fig = Figure(resolution=(800, 800), title="Comparison of linear model and simulation data")
+	state = X_combined[:, 1]
+	states = [state]
+	evals = [state]
+	# state  = vcat(state,1)
+	for x in eachcol(X_combined)
+		# @info size(state)
+		state = solution*state
+		state = [state; x[18:33];1]
+		push!(states, state)
+		push!(evals, x)
+	end
+	states_sim = stack(states)
+	states_eval =  stack(evals)
+	@info states_eval[1,size(X_combined,2)]
+	for i in 1:16
+		if i == 13
+			continue
+		end
+		ax = Axis(fig[(i-1)%4,(i-1) ÷ 4])
+		if n_moving == 0
+			l2 = lines!(1:size(X_combined,2), states_eval[i, 1:size(X_combined,2)])
+			l1 = lines!(1:size(X_combined,2), states_sim[i, 1:size(X_combined,2)])
+		Legend(fig[0,3], [l1,l2], ["Simulation             ", "Linear model"])
+			
+		else
+			l2 = lines!(
+				# 1:size(X_combined,2), 
+				rollmean(states_eval[i, 1:size(X_combined,2)], n_moving))
+			l1 = lines!(
+				# 1:size(X_combined,2), 
+				rollmean(states_sim[i, 1:size(X_combined,2)], n_moving))
+				Legend(fig[0,3], [l1,l2], ["Simulation             ", "Linear model"])
+			
+		end
+		
+	end
+	Label(fig[4, 0:3], "Time [s]")
+	Label(fig[0:3, -1], "Temperature [°C]", rotation=pi/2)
+	Label(fig[-1, :], "Comparison of linear model and simulation data", fontsize=24, font="Arial", padding=(0, 0, 0, 0))
+	
+	save("fig.svg", fig)
+	@info "Final state is" states[end]
+	fig
+end
+
 # ╔═╡ 8a2bd001-b371-439a-ba64-907deaee0769
 let
-	start = 1000
-	len = 700
+	start = 80000
+	len = 50*10
 	eval_solution(X_combined[:, start:start+len], solution)
 end
 
@@ -163,6 +194,12 @@ let
 	fig
 end
 
+
+# ╔═╡ 3f2b487e-a659-46ff-b527-78db1bcbc422
+# ╠═╡ disabled = true
+#=╠═╡
+X_data =  jldopen("../../data/dataset-long.jld2")["dataset"][2]
+  ╠═╡ =#
 
 # ╔═╡ 83b5db7b-7157-4c48-9a90-ec3d6ef57939
 # ╠═╡ disabled = true
@@ -272,13 +309,19 @@ let
 	X_optimal[18:33, :] .= vec(u_e*u_m')
 	start = 100
 	len = 700
-	eval_solution(X_optimal[:, start:start+len], solution)
+	eval_solution(X_optimal[:, start:start+len], solution, n_moving=50)
 end
+
+# ╔═╡ 3504815a-313c-4b07-8f15-0079c92331cd
+@bind startoff PlutoUI.Slider(1:10000)
 
 # ╔═╡ 75636f3a-54b2-4e72-8ae2-fcb9bdebe7e6
 let
 	fig = Figure(resolution=(800, 800), title="Comparison of linear model and simulation data")
-	X_combined = X_combined[:, 2000:3000]
+	start = 50000+startoff
+	len = 50000
+	idx = 1
+	X_combined = X_combined[:, start:start+len]
 	state = X_combined[:, 1]
 	states = [state]
 	evals = [state]
@@ -293,8 +336,9 @@ let
 	states_sim = stack(states)
 	states_eval =  stack(evals)
 	ax = Axis(fig[1,1])
-	l1 = lines!(1:size(X_combined,2), states_sim[17, 1:size(X_combined,2)])
-	l2 = lines!(1:size(X_combined,2), states_eval[17, 1:size(X_combined,2)])
+	l2 = lines!(1:size(X_combined,2), states_eval[idx, 1:size(X_combined,2)])
+	l1 = lines!(1:size(X_combined,2), states_sim[idx, 1:size(X_combined,2)],linewidth=5)
+	
 	# Legend(fig[0,3], [l1,l2], ["Simulation             ", "Linear model"])
 	# Label(fig[-1, :], "Comparison of linear model and simulation data", fontsize=24, font="Arial", padding=(0, 0, 0, 0))
 	
@@ -417,6 +461,8 @@ HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+RollingFunctions = "b0e4dd01-7b14-53d8-9b45-175a3e362653"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
@@ -425,6 +471,8 @@ ControlSystems = "~1.11.2"
 HiGHS = "~1.14.0"
 JLD2 = "~0.5.11"
 JuMP = "~1.24.0"
+PlutoUI = "~0.7.23"
+RollingFunctions = "~0.8.1"
 Statistics = "~1.11.1"
 """
 
@@ -434,7 +482,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "215bce6b2ffabaded70aca88b4a36ca2a0858681"
+project_hash = "dd3d886623e9fb1bc13aa1699a4998da2a701f03"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -457,6 +505,12 @@ weakdeps = ["ChainRulesCore", "Test"]
     [deps.AbstractFFTs.extensions]
     AbstractFFTsChainRulesCoreExt = "ChainRulesCore"
     AbstractFFTsTestExt = "Test"
+
+[[deps.AbstractPlutoDingetjes]]
+deps = ["Pkg"]
+git-tree-sha1 = "6e1d2a35f2f90a4bc7c2ed98079b2ba09c35b83a"
+uuid = "6e696c72-6542-2067-7265-42206c756150"
+version = "1.3.2"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "2d9c9a55f9c93e8887ad391fbae72f8ef55e1177"
@@ -1336,6 +1390,24 @@ git-tree-sha1 = "2bd56245074fab4015b9174f24ceba8293209053"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.27"
 
+[[deps.Hyperscript]]
+deps = ["Test"]
+git-tree-sha1 = "8d511d5b81240fc8e6802386302675bdf47737b9"
+uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+version = "0.0.4"
+
+[[deps.HypertextLiteral]]
+deps = ["Tricks"]
+git-tree-sha1 = "7134810b1afce04bbc1045ca1985fbe81ce17653"
+uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
+version = "0.9.5"
+
+[[deps.IOCapture]]
+deps = ["Logging", "Random"]
+git-tree-sha1 = "b6d6bfdd7ce25b0f9b2f6b3dd56b2673a66c8770"
+uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
+version = "0.2.5"
+
 [[deps.IfElse]]
 git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
 uuid = "615f187c-cbe4-4ef1-ba3b-2fcf58d6d173"
@@ -1522,6 +1594,11 @@ version = "1.24.0"
 
     [deps.JuMP.weakdeps]
     DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"
+
+[[deps.KahanSummation]]
+git-tree-sha1 = "6292e7878fe190651e74148edb11356dbbc2e194"
+uuid = "8e2b3108-d4c1-50be-a7a2-16352aec75c3"
+version = "0.3.1"
 
 [[deps.KernelDensity]]
 deps = ["Distributions", "DocStringExtensions", "FFTW", "Interpolations", "StatsBase"]
@@ -2323,6 +2400,12 @@ git-tree-sha1 = "3ca9a356cd2e113c420f2c13bea19f8d3fb1cb18"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 version = "1.4.3"
 
+[[deps.PlutoUI]]
+deps = ["AbstractPlutoDingetjes", "Base64", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
+git-tree-sha1 = "5152abbdab6488d5eec6a01029ca6697dff4ec8f"
+uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+version = "0.7.23"
+
 [[deps.Polyester]]
 deps = ["ArrayInterface", "BitTwiddlingConvenienceFunctions", "CPUSummary", "IfElse", "ManualMemory", "PolyesterWeave", "Static", "StaticArrayInterface", "StrideArraysCore", "ThreadingUtilities"]
 git-tree-sha1 = "6d38fea02d983051776a856b7df75b30cf9a3c1f"
@@ -2504,6 +2587,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "58cdd8fb2201a6267e1db87ff148dd6c1dbd8ad8"
 uuid = "f50d1b31-88e8-58de-be2c-1cc44531875f"
 version = "0.5.1+0"
+
+[[deps.RollingFunctions]]
+deps = ["KahanSummation", "LinearAlgebra", "Statistics", "StatsBase"]
+git-tree-sha1 = "4c67c9d97498ca54c14b02bb051721272f56cede"
+uuid = "b0e4dd01-7b14-53d8-9b45-175a3e362653"
+version = "0.8.1"
 
 [[deps.RoundingEmulator]]
 git-tree-sha1 = "40b9edad2e5287e05bd413a38f61a8ff55b9557b"
@@ -2902,6 +2991,11 @@ git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.11.3"
 
+[[deps.Tricks]]
+git-tree-sha1 = "6cae795a5a9313bbb4f60683f7263318fc7d1505"
+uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
+version = "0.1.10"
+
 [[deps.TriplotBase]]
 git-tree-sha1 = "4d4ed7f294cda19382ff7de4c137d24d16adc89b"
 uuid = "981d1d27-644d-49a2-9326-4793e63143c3"
@@ -3124,6 +3218,8 @@ version = "3.6.0+0"
 # ╔═╡ Cell order:
 # ╠═abbfee84-0188-11f0-0a28-679196b7d942
 # ╠═79feaa84-84ab-4e6a-bc2f-c4d157e208d8
+# ╠═cd76f68e-45ab-41d6-9830-c4f8caf1a755
+# ╠═30bd179e-7042-45ca-b82b-4ed25fd9ea6d
 # ╠═84a20361-e435-426d-b3b2-aa4313a097b9
 # ╠═d25e1020-036e-4357-9fee-938e916f0098
 # ╠═5d864b89-5b85-473d-b069-de56eb35b818
@@ -3145,6 +3241,8 @@ version = "3.6.0+0"
 # ╠═f2688a92-0b93-4487-88ce-304aae2f2ba4
 # ╠═c32bad11-574c-4182-9288-caa79b36e395
 # ╠═80831320-3d45-4232-bb1b-aeb1e0195c7b
+# ╠═862e5d81-2656-4375-8487-d10d97e5aece
+# ╠═3504815a-313c-4b07-8f15-0079c92331cd
 # ╠═75636f3a-54b2-4e72-8ae2-fcb9bdebe7e6
 # ╠═3d89abd4-ec13-47f0-a290-0e19c104eb63
 # ╠═da1bb73f-1a17-4d1d-9eb4-a47514b1535f

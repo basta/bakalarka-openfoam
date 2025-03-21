@@ -1,0 +1,3 @@
+/home/basta/Projects/bakalarka-openfoam/applications/cmake-build-debug/CMakeFiles/icoHeatSolver.dir
+/home/basta/Projects/bakalarka-openfoam/applications/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/basta/Projects/bakalarka-openfoam/applications/cmake-build-debug/CMakeFiles/rebuild_cache.dir

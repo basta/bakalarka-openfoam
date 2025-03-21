@@ -5,9 +5,11 @@
 
   surfaceScalarField phig(-rAUf * ghf * fvc::snGrad(rhok) * mesh.magSf());
 
+  surfaceScalarField phiF("phiF", fvc::flux(rAU * F));
+
   surfaceScalarField phiHbyA(
       "phiHbyA",
-      fvc::flux(HbyA) + MRF.zeroFilter(rAUf * fvc::ddtCorr(U, phi)) + phig);
+      fvc::flux(HbyA) + MRF.zeroFilter(rAUf * fvc::ddtCorr(U, phi)) + phig + phiF);
 
   MRF.makeRelative(phiHbyA);
 

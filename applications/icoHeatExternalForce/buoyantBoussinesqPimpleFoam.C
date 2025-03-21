@@ -51,6 +51,8 @@ Description
     \f]
 
 \*---------------------------------------------------------------------------*/
+#include <memory>
+
 
 #include "fvCFD.H"
 #include "dynamicFvMesh.H"
@@ -60,6 +62,8 @@ Description
 #include "CorrectPhi.H"
 #include "fvOptions.H"
 #include "pimpleControl.H"
+#include "./comms.H"
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -73,18 +77,21 @@ int main(int argc, char *argv[])
         "Uses the Boussinesq approximation."
     );
 
-    #include "postProcess.H"
 
     #include "addCheckCaseOptions.H"
     #include "setRootCaseLists.H"
     #include "createTime.H"
     #include "createDynamicFvMesh.H"
     #include "createDyMControls.H"
+    #include "initContinuityErrs.H"
+
     #include "createFields.H"
     #include "createUfIfPresent.H"
     #include "CourantNo.H"
     #include "setInitialDeltaT.H"
-    #include "initContinuityErrs.H"
+
+    // #include "postProcess.H"
+
 
     turbulence->validate();
 
@@ -92,8 +99,9 @@ int main(int argc, char *argv[])
 
     Info<< "\nStarting time loop\n" << endl;
 
-    bool printedFixedFlow = false;
 
+    float last_control_time = 0;
+    float control_delay_s = 5;
     while (runTime.run())
     {
         #include "readDyMControls.H"
@@ -104,12 +112,21 @@ int main(int argc, char *argv[])
 
         Info<< "Time = " << runTime.timeName() << nl << endl;
 
-        bool fixedFlow = runTime.value() > 1;
-        if (fixedFlow && !printedFixedFlow)
-        {
-            Info<< "Fixed flow from now on\n" << endl;
-            printedFixedFlow = true;
+        if (runTime.value() > last_control_time + control_delay_s) {
+            auto field = request_field(runTime.value());
+            forAll(F, cellI)
+            {
+                F[cellI] = vector(field[cellI][0], field[cellI][1], field[cellI][2]);
+            }
+            last_control_time = runTime.value();
         }
+        bool fixedFlow = false;
+        // bool fixedFlow = runTime.value() > 1;
+        // if (fixedFlow && !printedFixedFlow)
+        // {
+        //     Info<< "Fixed flow from now on\n" << endl;
+        //     printedFixedFlow = true;
+        // }
 
         // --- Pressure-velocity PIMPLE corrector loop
         while (pimple.loop())
