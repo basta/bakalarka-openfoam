@@ -99,6 +99,7 @@ function read_field_vector(field_path::String)::Matrix
     cells = [lineToVec(line) for line in lines[cellStart:cellStart+nCells-1]]
 
     cells_matrix = zeros(3,size(cells,1))
+
     for (i, cell) in enumerate(cells)
         cells_matrix[:, i] = cell
     end

@@ -29,7 +29,7 @@ elMagData = create_trees("./data/forceFields")
 
 
 
-CASE_DIR = "../2d-example/"
+CASE_DIR = "../2d-example-live/"
 TRANS_FUN = example2magman
 
 export CASE_DIR, TRANS_FUN, run_sim, real_force_generator

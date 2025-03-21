@@ -1,0 +1,33 @@
+{
+	"bmi-installation" : null,
+	"compiler-frontend-variant" : "GNU",
+	"compiler-id" : "GNU",
+	"compiler-simulate-id" : "",
+	"config" : "Debug",
+	"cxx-modules" : {},
+	"dir-cur-bld" : "/home/basta/Projects/bakalarka-openfoam/applications/cmake-build-debug",
+	"dir-cur-src" : "/home/basta/Projects/bakalarka-openfoam/applications",
+	"dir-top-bld" : "/home/basta/Projects/bakalarka-openfoam/applications/cmake-build-debug",
+	"dir-top-src" : "/home/basta/Projects/bakalarka-openfoam/applications",
+	"exports" : [],
+	"forward-modules-from-target-dirs" : [],
+	"include-dirs" : 
+	[
+		"/home/basta/Projects/bakalarka-openfoam/applications/.",
+		"/usr/lib/openfoam/openfoam2406/src/OpenFOAM/lnInclude",
+		"/usr/lib/openfoam/openfoam2406/src/OSspecific/POSIX/lnInclude",
+		"/usr/lib/openfoam/openfoam2406/src/finiteVolume/lnInclude",
+		"/usr/lib/openfoam/openfoam2406/src/dynamicFvMesh/lnInclude",
+		"/usr/lib/openfoam/openfoam2406/src/transportModels/incompressible/lnInclude",
+		"/usr/lib/openfoam/openfoam2406/src/meshTools/lnInclude",
+		"/usr/lib/openfoam/openfoam2406/src/TurbulenceModels/incompressible/lnInclude",
+		"/usr/lib/openfoam/openfoam2406/src/TurbulenceModels/turbulenceModels/lnInclude",
+		"/usr/lib/openfoam/openfoam2406/src/thermophysicalModels/radiation/lnInclude",
+		"/usr/lib/openfoam/openfoam2406/src/transportModels",
+		"/usr/lib/openfoam/openfoam2406/src/finiteVolume/functionObjects/fvMeshFunctionObject",
+		"/home/basta/Projects/bakalarka-openfoam/applications/./pimpleFoam"
+	],
+	"language" : "CXX",
+	"linked-target-dirs" : [],
+	"module-dir" : "/home/basta/Projects/bakalarka-openfoam/applications/cmake-build-debug/CMakeFiles/icoHeatSolver.dir"
+}

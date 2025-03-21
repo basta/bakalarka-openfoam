@@ -1,4 +1,4 @@
-using Revise, JSON, JLD2, ProgressLogging
+using Revise, JSON, JLD2, ProgressLogging, DataFrames, CSV
 #include("../MHD_control_cooling.jl")
 include("../openfoam/field_utils.jl")
 include("../openfoam/real_field.jl")
@@ -70,42 +70,57 @@ function extract_inputs_from_file(file_path::String)
 end
 
 
-function create_u_Y_matrix_for_case(case_path, sample_points; inputs_file=nothing)
+function create_u_Y_matrix_for_case(case_path, sample_points; inputs_file=nothing, csv_file=nothing)
 
     if !isnothing(inputs_file)
         datas = jldopen(inputs_file)
     end
 
+    if !isnothing(csv_file)
+        df = CSV.read(csv_file, DataFrame)
+        df[:, :Time] = Int32.(round.(df[:, :Time]))
+    end
+
 
 
     time_dirs = filter(
-        x -> isdir(joinpath(case_path, x)) && isnumeric(x) && parse(Int, x) > 0,
+        x -> isdir(joinpath(case_path, x)) && isnumeric(x) && parse(Float64, x) > 0,
     readdir(case_path))
 
     cells = read_field_vector(joinpath(case_path, "0/C"))
     cell_tree = KDTree(cells)
 
-    sort!(time_dirs, by = x -> parse(Int, x))
+    sort!(time_dirs, by = x -> parse(Float64, x))
     Y = zeros(size(sample_points, 2)+1, length(time_dirs))
     times = []
     inputs = zeros(8, length(time_dirs))
     last_input = zeros(8)
-    @progress for time_dir in time_dirs
-        t = parse(Int, time_dir)
+    @progress for (i, time_dir) in enumerate(time_dirs)
+        t = parse(Float64, time_dir)
         push!(times, t)
         time_path = joinpath(case_path, time_dir)
         T = read_field_scalar(joinpath(time_path,
         "T"))
         @info time_path
-        input_t = extract_inputs_from_file(joinpath(time_path, "F"))
+        if !isnothing(csv_file)
+            idx = findlast(df[:, :Time] .<= t)
+            if idx === nothing
+                idx = 1
+            end 
+
+            input_t = Vector(df[idx, 2:end])
+        else 
+            input_t = extract_inputs_from_file(joinpath(time_path, "F"))
+        end
+        
         if !isempty(input_t)
             last_input = input_t
         else 
             input_t = last_input
         end
-        inputs[:, t] = input_t
+        inputs[:, i] = input_t
 
-        Y[:, t] = T_out_sampler(cell_tree, cells, T, sample_points, case_path)
+        Y[:, i] = T_out_sampler(cell_tree, cells, T, sample_points, case_path)
     end
     if !isnothing(inputs_file)
         inputs_in = datas["inputs"]
@@ -136,6 +151,18 @@ function main_for_long()
     dataset_out = "./data/dataset-long.jld2"
     dataset = create_u_Y_matrix_for_case(("./data/cases/long2d-2"), 
     EXAMPLE_2D_SAMPLE_POINTS)
+    jldsave(dataset_out; dataset=dataset)
+    println("Dataset saved: $dataset_out")
+    
+    return dataset
+end
+
+
+
+function main_for_live(csv_path)
+    dataset_out = "./data/dataset-live2.jld2"
+    dataset = create_u_Y_matrix_for_case(("./data/cases/2d-example-live2"), 
+    EXAMPLE_2D_SAMPLE_POINTS, csv_file=csv_path)
     jldsave(dataset_out; dataset=dataset)
     println("Dataset saved: $dataset_out")
     
