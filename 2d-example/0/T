@@ -16,7 +16,7 @@ FoamFile
 
 dimensions      [0 0 0 1 0 0 0];
 
-internalField   uniform 20;
+internalField   uniform 315;
 
 boundaryField
 {
@@ -26,20 +26,26 @@ boundaryField
     }
 
     // WALLS
-    fixedWalls {
+    "fixedWallBottom" {
+        type zeroGradient;
+        // value uniform 20;
+    }
+    "fixedWallTop" {
         type zeroGradient;
     }
 
     // HEATER
     hotEnd {
-        type fixedGradient;
-        gradient uniform 1000;
+        type fixedValue;
+        value $internalField;
+        value uniform 330;
     }
 
     // COOLER {
     coldEnd {
         type fixedValue;
-        value uniform 0;
+        // value $internalField;
+        value uniform 300;
     }
 }
 

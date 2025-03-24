@@ -132,7 +132,7 @@ function identification_signal(t::Real, T_stabilize::Real)
     return out 
 end
 
-CASE_DIR = "../2d-example-live/"
+CASE_DIR = "../2d-example/"
 
 function main()
 
