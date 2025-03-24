@@ -1,0 +1,59 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2406                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      thermophysicalProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+thermoType
+{
+    type            heRhoThermo;
+    mixture         pureMixture;
+    transport       const;
+    thermo          hConst;
+    equationOfState rhoConst;
+    specie          specie;
+    energy          sensibleEnthalpy;
+}
+mixture
+{
+    specie
+    {
+        nMoles          1;
+        molWeight       18.015;  // g/mol for water
+    }
+    
+    equationOfState
+    {
+        rho    1000;
+    }
+    
+    thermodynamics
+    {
+        Tlow            273;     // Lower temperature in Kelvin
+        Thigh           373;     // Upper temperature in Kelvin
+        Tcommon         300;
+        Hf              0;
+        Sf              0;
+        // Approximate constant specific heat for water (~4180 J/(kg·K))
+        Cp     4180;;
+    }
+    
+    transport
+    {
+        // Dynamic viscosity of water is ~1e-3 Pa·s at room temperature.
+        mu     1e-3; //TODO check this
+        // Thermal conductivity of water is approximately 0.6 W/(m·K)
+        kappa  0.6 ;
+        Pr    0.85;
+    }
+}

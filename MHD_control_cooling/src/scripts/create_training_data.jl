@@ -160,8 +160,8 @@ end
 
 
 function main_for_live(csv_path)
-    dataset_out = "./data/dataset-live2.jld2"
-    dataset = create_u_Y_matrix_for_case(("./data/cases/2d-example-live2"), 
+    dataset_out = "./data/dataset-live.jld2"
+    dataset = create_u_Y_matrix_for_case(("../2d-example"), 
     EXAMPLE_2D_SAMPLE_POINTS, csv_file=csv_path)
     jldsave(dataset_out; dataset=dataset)
     println("Dataset saved: $dataset_out")

@@ -17,14 +17,21 @@ FoamFile
 dimensions      [0 1 -1 0 0 0 0];
 
 
-internalField   uniform (0 0 0);
+internalField   uniform (0 -0.0 0);
 
 boundaryField
 {
     // WALLS
-    fixedWalls {
+    // fixedWallTop {
+    //     type fixedValue;
+    //     value uniform (0.0 -0.0 0);
+    // }
+    // fixedWallBottom {
+    //     type zeroGradient;
+    // }
+
+    "fixedWall.*" {
         type noSlip;
-        // value uniform (1 0 0);
     }
 
     frontAndBack {
@@ -36,27 +43,6 @@ boundaryField
     }
 
     hotEnd { 
-        type noSlip;
-    }
-
-    // INLET
-    patch_2_0 {
-        type fixedValue;
-        value uniform (0 0.1 0);
-    }
-
-    // OUTLET
-    patch_3_0 {
-        type zeroGradient;
-    }
-
-    // HEATER
-    patch_4_0 {
-        type noSlip;
-    }
-
-    // COOLER {
-    patch_5_0 {
         type noSlip;
     }
 }

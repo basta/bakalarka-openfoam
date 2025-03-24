@@ -23,10 +23,10 @@ using LinearAlgebra, JLD2, Statistics, CairoMakie, ControlSystems, RollingFuncti
 using PlutoUI
 
 # ╔═╡ 79feaa84-84ab-4e6a-bc2f-c4d157e208d8
-U_data = jldopen("../../data/dataset-live2.jld2")["dataset"][1]
+U_data = jldopen("../../data/dataset-live.jld2")["dataset"][1]
 
 # ╔═╡ cd76f68e-45ab-41d6-9830-c4f8caf1a755
-X_data = jldopen("../../data/dataset-live2.jld2")["dataset"][2]
+X_data = jldopen("../../data/dataset-live.jld2")["dataset"][2]
 
 # ╔═╡ 30bd179e-7042-45ca-b82b-4ed25fd9ea6d
 X_data[:,2000:end]
@@ -41,17 +41,43 @@ U = let
 	stack(cols)[:, 1:end-1]
 end
 
+# ╔═╡ e4d1e00a-0001-473f-b79d-fc96a3642a4c
+X_shifted_data, U_shifted = let
+	shift = 5
+	X_shifted_data = zeros(0, size(X_data,2)-shift)
+	for i in 0:shift
+		X_shifted_data = [
+			X_shifted_data;
+			X_data[:, 1+(shift-i):end-i]
+		]
+	end
+	X_shifted_data, U[:, shift:end]
+end
+
 # ╔═╡ d25e1020-036e-4357-9fee-938e916f0098
-X_next = X_data[:, 2:end]
+
 
 # ╔═╡ 5d864b89-5b85-473d-b069-de56eb35b818
-X = X_data[:, 1:end-1]
+# ╠═╡ disabled = true
+#=╠═╡
+X = X_data[:, 1:end-1]; U = U
+  ╠═╡ =#
 
 # ╔═╡ 5cb8ee92-4a70-47c2-afd4-fa8291d7c83e
-X_combined = [X; U; ones(1,size(X,2))]
+begin
+	# X_combined = [X; U; ones(1,size(X,2))]
+	X_next = X_data[:, 2:end]
+	X_combined = [
+		X_shifted_data[:, 1:end-1];
+		U_shifted[:, 1:end-1]; 
+		ones(1,size(X_shifted_data,2)-1)
+	]
+	X_next = X_shifted_data[1:17, 2:end]
+	solution = X_next*pinv(X_combined)
+end
 
 # ╔═╡ a76d2bed-b336-4404-8308-25c75b89dcd8
-solution = X_next*pinv(X_combined)
+
 
 # ╔═╡ a46a786e-f154-4aa6-9c54-2ee7751654fd
 let
@@ -131,19 +157,36 @@ end
 # ╔═╡ a1028443-272f-43a1-925a-afd1662bed5f
 sum(mean(abs.((solution * X_combined ) .- X_next), dims=2))
 
+# ╔═╡ be55ab43-44d7-490b-be1b-a0352e9575b3
+vcat(ones(5), ones(5))
+
+# ╔═╡ f0963fc7-432d-41dc-8f5b-77e62f4b2c6a
+let
+	N_states = 17
+	shift = 5
+	states = [col[:] for col in eachcol(X_combined[1:N_states, 1:shift])]
+	vec(stack(states))
+end
+
 # ╔═╡ 9584aa87-d692-4c29-967e-ca3fbd337da7
 function eval_solution(X_combined, solution; n_moving=0)
+	shift = 5
+	N_states = 17
 	fig = Figure(resolution=(800, 800), title="Comparison of linear model and simulation data")
-	state = X_combined[:, 1]
-	states = [state]
-	evals = [state]
+	state = X_combined[:, shift+1]
+	states = X_combined[1:N_states, 1:shift]
+	evals = X_combined[1:N_states, 1:shift]
 	# state  = vcat(state,1)
 	for x in eachcol(X_combined)
 		# @info size(state)
 		state = solution*state
-		state = [state; x[18:33];1]
-		push!(states, state)
-		push!(evals, x)
+		delay_state = vec(states[:, end-(shift-1):end])
+		states = [states state]
+		evals = [evals x[1:N_states]]
+		
+		
+		state = vcat(state, delay_state, x[end-15:end], 1)
+		@info state
 	end
 	states_sim = stack(states)
 	states_eval =  stack(evals)
@@ -170,6 +213,15 @@ function eval_solution(X_combined, solution; n_moving=0)
 		end
 		
 	end
+	ax = Axis(fig[5,:])
+	
+	l2 = lines!(
+				# 1:size(X_combined,2), 
+				rollmean(states_eval[17, 1:size(X_combined,2)], 1))
+	l1 = lines!(
+				# 1:size(X_combined,2), 
+				rollmean(states_sim[17, 1:size(X_combined,2)], 1))
+			
 	Label(fig[4, 0:3], "Time [s]")
 	Label(fig[0:3, -1], "Temperature [°C]", rotation=pi/2)
 	Label(fig[-1, :], "Comparison of linear model and simulation data", fontsize=24, font="Arial", padding=(0, 0, 0, 0))
@@ -181,10 +233,13 @@ end
 
 # ╔═╡ 8a2bd001-b371-439a-ba64-907deaee0769
 let
-	start = 80000
-	len = 50*10
+	start = 5000
+	len = 100*10
 	eval_solution(X_combined[:, start:start+len], solution)
 end
+
+# ╔═╡ a2547bdd-3d27-4eea-a111-2d009d430da4
+X_combined
 
 # ╔═╡ a058051a-74fe-41de-b56d-7ed9f5f0f6eb
 let
@@ -480,7 +535,7 @@ Statistics = "~1.11.1"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.3"
+julia_version = "1.11.4"
 manifest_format = "2.0"
 project_hash = "dd3d886623e9fb1bc13aa1699a4998da2a701f03"
 
@@ -2105,7 +2160,7 @@ version = "3.2.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.1+4"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -3219,6 +3274,7 @@ version = "3.6.0+0"
 # ╠═abbfee84-0188-11f0-0a28-679196b7d942
 # ╠═79feaa84-84ab-4e6a-bc2f-c4d157e208d8
 # ╠═cd76f68e-45ab-41d6-9830-c4f8caf1a755
+# ╠═e4d1e00a-0001-473f-b79d-fc96a3642a4c
 # ╠═30bd179e-7042-45ca-b82b-4ed25fd9ea6d
 # ╠═84a20361-e435-426d-b3b2-aa4313a097b9
 # ╠═d25e1020-036e-4357-9fee-938e916f0098
@@ -3228,8 +3284,11 @@ version = "3.6.0+0"
 # ╠═a46a786e-f154-4aa6-9c54-2ee7751654fd
 # ╠═50cdc015-09f8-497a-9303-dc8a48b836f9
 # ╠═a1028443-272f-43a1-925a-afd1662bed5f
+# ╠═be55ab43-44d7-490b-be1b-a0352e9575b3
+# ╠═f0963fc7-432d-41dc-8f5b-77e62f4b2c6a
 # ╠═9584aa87-d692-4c29-967e-ca3fbd337da7
 # ╠═8a2bd001-b371-439a-ba64-907deaee0769
+# ╠═a2547bdd-3d27-4eea-a111-2d009d430da4
 # ╠═a058051a-74fe-41de-b56d-7ed9f5f0f6eb
 # ╠═3f2b487e-a659-46ff-b527-78db1bcbc422
 # ╠═83b5db7b-7157-4c48-9a90-ec3d6ef57939
