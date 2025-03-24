@@ -14,26 +14,34 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-dimensions      [0 2 -2 0 0 0 0];
+dimensions      [1 -1 -2 0 0 0 0];
 
 internalField   uniform 0;
 
 boundaryField
 {
     // WALLS
-    fixedWalls {
+    fixedWallTop
+    {
         type zeroGradient;
+    }
+    
+    fixedWallBottom
+    {
+        type fixedValue;
+        value uniform 0; // Anchors p_rgh at 0 (gauge pressure)
     }
 
     // INLET
-    coldEnd {
+    coldEnd
+    {
         type zeroGradient;
     }
 
-    // OUTLET
-    hotEnd {
-        type fixedValue;
-        value uniform 0;
+    // OUTLET (Reference pressure patch)
+    hotEnd
+    {
+        type zeroGradient;
     }
 }
 

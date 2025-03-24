@@ -26,18 +26,26 @@ boundaryField
         value uniform 0.143;
     }
 
+    ".*" {
+        type zeroGradient;
+    }
+
     frontAndBack {
         type empty;
     }
 
     // INLET
     coldEnd {
-        type zeroGradient;
+        type            alphatJayatillekeWallFunction;
+        Prt             0.85;
+        value           uniform 0;
     }
 
     // OUTLET
     hotEnd {
-        type zeroGradient;
+        type            alphatJayatillekeWallFunction;
+        Prt             0.85;
+        value           uniform 0;
     }
 
 }
