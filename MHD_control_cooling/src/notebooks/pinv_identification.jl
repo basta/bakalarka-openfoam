@@ -17,16 +17,22 @@ macro bind(def, element)
 end
 
 # ╔═╡ abbfee84-0188-11f0-0a28-679196b7d942
-using LinearAlgebra, JLD2, Statistics, CairoMakie, ControlSystems, RollingFunctions
+using LinearAlgebra, JLD2, Statistics, CairoMakie, ControlSystems, RollingFunctions, SimplePlutoInclude, Revise
 
 # ╔═╡ 862e5d81-2656-4375-8487-d10d97e5aece
 using PlutoUI
 
-# ╔═╡ 79feaa84-84ab-4e6a-bc2f-c4d157e208d8
-U_data = jldopen("../../data/dataset-live.jld2")["dataset"][1]
+# ╔═╡ 8ec3a9df-c25a-4817-b838-8746182346e9
+@plutoinclude "../sys_models.jl"
 
-# ╔═╡ cd76f68e-45ab-41d6-9830-c4f8caf1a755
-X_data = jldopen("../../data/dataset-live.jld2")["dataset"][2]
+# ╔═╡ 03087046-3908-4d4b-add0-d672d0548aeb
+begin
+	X_data = jldopen("../../data/dataset-live.jld2")["dataset"][2];
+	U_data = jldopen("../../data/dataset-live.jld2")["dataset"][1];
+	N_states = size(X_data,1)	
+	N_inputs = Int((size(U_data,1)/2)^2)
+	SHIFT = 5
+end
 
 # ╔═╡ 30bd179e-7042-45ca-b82b-4ed25fd9ea6d
 X_data[:,2000:end]
@@ -38,12 +44,29 @@ U = let
 	for u in eachcol(U_data)
 		push!(cols, vec(u[1:4]*u[5:8]'))
 	end
-	stack(cols)[:, 1:end-1]
+	stack(cols)[:, :]
+end
+
+# ╔═╡ bbf84e47-3ad5-4f6c-874d-67ae168d007e
+linmodel_fn = create_delay_step_linmodel(X_data, U, 10, 5)   
+
+# ╔═╡ c9ae8e90-de39-40a8-87b7-f7ce896c3d67
+let
+	start = 1200
+	len = 1000
+	idx = 5
+	states = simulate_model(X_data[:, start], U[:, start:start+len], linmodel_fn) 
+ 
+	fig = Figure()
+	ax = Axis(fig[1,1])
+	lines!(states[idx,:])
+	lines!(X_data[idx, start:start+len])
+	fig
 end
 
 # ╔═╡ e4d1e00a-0001-473f-b79d-fc96a3642a4c
 X_shifted_data, U_shifted = let
-	shift = 5
+	shift = SHIFT
 	X_shifted_data = zeros(0, size(X_data,2)-shift)
 	for i in 0:shift
 		X_shifted_data = [
@@ -51,8 +74,14 @@ X_shifted_data, U_shifted = let
 			X_data[:, 1+(shift-i):end-i]
 		]
 	end
-	X_shifted_data, U[:, shift:end]
+	X_shifted_data, U[:, 1+shift:end]
 end
+
+# ╔═╡ 9b35d8b8-bc89-4921-8e09-67e3c9c18213
+begin
+	include("../sys_models.jl")
+	create_linmodel(X_data, U)
+end 
 
 # ╔═╡ d25e1020-036e-4357-9fee-938e916f0098
 
@@ -72,31 +101,31 @@ begin
 		U_shifted[:, 1:end-1]; 
 		ones(1,size(X_shifted_data,2)-1)
 	]
-	X_next = X_shifted_data[1:17, 2:end]
+	X_next = X_shifted_data[1:N_states, 2:end]
 	solution = X_next*pinv(X_combined)
 end
 
-# ╔═╡ a76d2bed-b336-4404-8308-25c75b89dcd8
-
+# ╔═╡ 22f279eb-22ed-4d15-a26b-a02e4f619f84
+X_next
 
 # ╔═╡ a46a786e-f154-4aa6-9c54-2ee7751654fd
-let
-	residuals = []
-	for cutoff in 1:10000:size(X_combined,2)
-		solution = X_next[:,1:cutoff]*pinv(X_combined[:,1:cutoff])
-		res = sum(mean(abs.((solution * X_combined ) .- X_next), dims=2))
-		push!(residuals, res)
-	end
-	fig = Figure()
-	ax = Axis(fig[1,1])
-	lines!(ax, (residuals[1:end]))
-	fig
-end
+# let
+# 	residuals = []
+# 	for cutoff in 1:10000:size(X_combined,2)
+# 		solution = X_next[:,1:cutoff]*pinv(X_combined[:,1:cutoff])
+# 		res = sum(mean(abs.((solution * X_combined ) .- X_next), dims=2))
+# 		push!(residuals, res)
+# 	end
+# 	fig = Figure()
+# 	ax = Axis(fig[1,1])
+# 	lines!(ax, (residuals[1:end]))
+# 	fig
+# end
 
 # ╔═╡ 50cdc015-09f8-497a-9303-dc8a48b836f9
 begin
-	A_sol = solution[:, 1:17]
-	B_sol = solution[:, 18:33]
+	A_sol = solution[:, 1:N_states]
+	B_sol = solution[:, N_states+1:N_states+N_inputs+1]
 	S_sol = solution[:, end];
 end
 
@@ -157,38 +186,27 @@ end
 # ╔═╡ a1028443-272f-43a1-925a-afd1662bed5f
 sum(mean(abs.((solution * X_combined ) .- X_next), dims=2))
 
-# ╔═╡ be55ab43-44d7-490b-be1b-a0352e9575b3
-vcat(ones(5), ones(5))
-
-# ╔═╡ f0963fc7-432d-41dc-8f5b-77e62f4b2c6a
-let
-	N_states = 17
-	shift = 5
-	states = [col[:] for col in eachcol(X_combined[1:N_states, 1:shift])]
-	vec(stack(states))
-end
-
 # ╔═╡ 9584aa87-d692-4c29-967e-ca3fbd337da7
 function eval_solution(X_combined, solution; n_moving=0)
-	shift = 5
-	N_states = 17
+	shift = SHIFT
 	fig = Figure(resolution=(800, 800), title="Comparison of linear model and simulation data")
-	state = X_combined[:, shift+1]
-	states = X_combined[1:N_states, 1:shift]
+	state_xu = X_combined[:, shift+1]
+	states_xu = X_combined[:, 1:shift]
 	evals = X_combined[1:N_states, 1:shift]
 	# state  = vcat(state,1)
 	for x in eachcol(X_combined)
-		# @info size(state)
-		state = solution*state
-		delay_state = vec(states[:, end-(shift-1):end])
-		states = [states state]
+		@info size(state_xu)
+		state = solution*state_xu
+		delay_state = vec(states_xu[:, end-(shift-1):end])
+		state_xu = vcat(state, delay_state, x[N_states+1:end-1], 1)
+		
+
+		states_xu = [states_xu state_xu]
 		evals = [evals x[1:N_states]]
 		
-		
-		state = vcat(state, delay_state, x[end-15:end], 1)
 		@info state
 	end
-	states_sim = stack(states)
+	states_sim = stack(states_xu)
 	states_eval =  stack(evals)
 	@info states_eval[1,size(X_combined,2)]
 	for i in 1:16
@@ -227,14 +245,14 @@ function eval_solution(X_combined, solution; n_moving=0)
 	Label(fig[-1, :], "Comparison of linear model and simulation data", fontsize=24, font="Arial", padding=(0, 0, 0, 0))
 	
 	save("fig.svg", fig)
-	@info "Final state is" states[end]
+	@info "Final state is" states_xu[end]
 	fig
 end
 
 # ╔═╡ 8a2bd001-b371-439a-ba64-907deaee0769
 let
-	start = 5000
-	len = 100*10
+	start = 10000
+	len = 50
 	eval_solution(X_combined[:, start:start+len], solution)
 end
 
@@ -517,7 +535,9 @@ JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RollingFunctions = "b0e4dd01-7b14-53d8-9b45-175a3e362653"
+SimplePlutoInclude = "6f00a2c5-ea4a-46bf-9183-91b7b57a087f"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
@@ -527,7 +547,9 @@ HiGHS = "~1.14.0"
 JLD2 = "~0.5.11"
 JuMP = "~1.24.0"
 PlutoUI = "~0.7.23"
+Revise = "~3.7.2"
 RollingFunctions = "~0.8.1"
+SimplePlutoInclude = "~0.2.0"
 Statistics = "~1.11.1"
 """
 
@@ -535,9 +557,9 @@ Statistics = "~1.11.1"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.4"
+julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "dd3d886623e9fb1bc13aa1699a4998da2a701f03"
+project_hash = "6aeeb6f6ae3605118dc4036766f9017a83389d8a"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -784,6 +806,12 @@ deps = ["Static", "StaticArrayInterface"]
 git-tree-sha1 = "05ba0d07cd4fd8b7a39541e31a7b0254704ea581"
 uuid = "fb6a15b2-703c-40df-9091-08a04967cfa9"
 version = "0.1.13"
+
+[[deps.CodeTracking]]
+deps = ["InteractiveUtils", "UUIDs"]
+git-tree-sha1 = "7eee164f122511d3e4e1ebadb7956939ea7e1c77"
+uuid = "da1fd8a2-8d9e-5ec2-8556-3022fb5608a2"
+version = "1.3.6"
 
 [[deps.CodecBzip2]]
 deps = ["Bzip2_jll", "TranscodingStreams"]
@@ -1650,6 +1678,12 @@ version = "1.24.0"
     [deps.JuMP.weakdeps]
     DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"
 
+[[deps.JuliaInterpreter]]
+deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
+git-tree-sha1 = "a434e811d10e7cbf4f0674285542e697dca605d0"
+uuid = "aa1ae85d-cabe-5617-a682-6adf51b2e16a"
+version = "0.9.42"
+
 [[deps.KahanSummation]]
 git-tree-sha1 = "6292e7878fe190651e74148edb11356dbbc2e194"
 uuid = "8e2b3108-d4c1-50be-a7a2-16352aec75c3"
@@ -1901,6 +1935,12 @@ version = "0.3.29"
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 version = "1.11.0"
+
+[[deps.LoweredCodeUtils]]
+deps = ["JuliaInterpreter"]
+git-tree-sha1 = "688d6d9e098109051ae33d126fcfc88c4ce4a021"
+uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
+version = "3.1.0"
 
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]
@@ -2160,7 +2200,7 @@ version = "3.2.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+4"
+version = "0.8.1+2"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -2631,6 +2671,16 @@ git-tree-sha1 = "62389eeff14780bfe55195b7204c0d8738436d64"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.3.1"
 
+[[deps.Revise]]
+deps = ["CodeTracking", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "REPL", "Requires", "UUIDs", "Unicode"]
+git-tree-sha1 = "9bb80533cb9769933954ea4ffbecb3025a783198"
+uuid = "295af30f-e4ad-537b-8983-00126c2a3abe"
+version = "3.7.2"
+weakdeps = ["Distributed"]
+
+    [deps.Revise.extensions]
+    DistributedExt = "Distributed"
+
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]
 git-tree-sha1 = "852bd0f55565a9e973fcfee83a84413270224dc4"
@@ -2781,6 +2831,12 @@ version = "2.1.0"
     DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
     ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
     Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
+
+[[deps.SimplePlutoInclude]]
+deps = ["Dates"]
+git-tree-sha1 = "a98dee6bdc63f648d92b28348dcb9b59c2881fbf"
+uuid = "6f00a2c5-ea4a-46bf-9183-91b7b57a087f"
+version = "0.2.0"
 
 [[deps.SimpleTraits]]
 deps = ["InteractiveUtils", "MacroTools"]
@@ -3272,20 +3328,21 @@ version = "3.6.0+0"
 
 # ╔═╡ Cell order:
 # ╠═abbfee84-0188-11f0-0a28-679196b7d942
-# ╠═79feaa84-84ab-4e6a-bc2f-c4d157e208d8
-# ╠═cd76f68e-45ab-41d6-9830-c4f8caf1a755
+# ╠═8ec3a9df-c25a-4817-b838-8746182346e9
+# ╠═bbf84e47-3ad5-4f6c-874d-67ae168d007e
+# ╠═c9ae8e90-de39-40a8-87b7-f7ce896c3d67
+# ╠═03087046-3908-4d4b-add0-d672d0548aeb
 # ╠═e4d1e00a-0001-473f-b79d-fc96a3642a4c
+# ╠═9b35d8b8-bc89-4921-8e09-67e3c9c18213
 # ╠═30bd179e-7042-45ca-b82b-4ed25fd9ea6d
 # ╠═84a20361-e435-426d-b3b2-aa4313a097b9
 # ╠═d25e1020-036e-4357-9fee-938e916f0098
 # ╠═5d864b89-5b85-473d-b069-de56eb35b818
 # ╠═5cb8ee92-4a70-47c2-afd4-fa8291d7c83e
-# ╠═a76d2bed-b336-4404-8308-25c75b89dcd8
-# ╠═a46a786e-f154-4aa6-9c54-2ee7751654fd
+# ╠═22f279eb-22ed-4d15-a26b-a02e4f619f84
+# ╟─a46a786e-f154-4aa6-9c54-2ee7751654fd
 # ╠═50cdc015-09f8-497a-9303-dc8a48b836f9
 # ╠═a1028443-272f-43a1-925a-afd1662bed5f
-# ╠═be55ab43-44d7-490b-be1b-a0352e9575b3
-# ╠═f0963fc7-432d-41dc-8f5b-77e62f4b2c6a
 # ╠═9584aa87-d692-4c29-967e-ca3fbd337da7
 # ╠═8a2bd001-b371-439a-ba64-907deaee0769
 # ╠═a2547bdd-3d27-4eea-a111-2d009d430da4

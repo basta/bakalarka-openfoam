@@ -7,7 +7,7 @@ includet("../MHD_control_cooling.jl")
 using .MHD_control_cooling
 
 EXAMPLE_2D_SAMPLE_POINTS = stack([
-    [x;y;0.005] for x in 0.025:0.025:0.1 for y in 0.025:0.025:0.1
+    [x;y;0.005] for x in 0.01:0.01:0.1 for y in 0.01:0.01:0.1
 ])
 
 
@@ -149,7 +149,7 @@ end
 
 function main_for_long()
     dataset_out = "./data/dataset-long.jld2"
-    dataset = create_u_Y_matrix_for_case(("./data/cases/long2d-2"), 
+    dataset = create_u_Y_matrix_for_case(("../new-sim/"), 
     EXAMPLE_2D_SAMPLE_POINTS)
     jldsave(dataset_out; dataset=dataset)
     println("Dataset saved: $dataset_out")
@@ -161,7 +161,7 @@ end
 
 function main_for_live(csv_path)
     dataset_out = "./data/dataset-live.jld2"
-    dataset = create_u_Y_matrix_for_case(("../2d-example"), 
+    dataset = create_u_Y_matrix_for_case(("../new-sim"), 
     EXAMPLE_2D_SAMPLE_POINTS, csv_file=csv_path)
     jldsave(dataset_out; dataset=dataset)
     println("Dataset saved: $dataset_out")
