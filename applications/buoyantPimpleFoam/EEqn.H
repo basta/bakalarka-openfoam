@@ -17,7 +17,7 @@
         )
       - fvm::laplacian(turbulence->alphaEff(), he)
      ==
-        rho*(U&(g + extA))
+        rho*(U&(g)) + (U & F)
       // + (U & F)/mesh.V().field() // TODO Add this, dont know how
       + radiation->Sh(thermo, he)
       + fvOptions(rho, he)
