@@ -149,7 +149,7 @@ end
 
 function main_for_long()
     dataset_out = "./data/dataset-long.jld2"
-    dataset = create_u_Y_matrix_for_case(("./data/cases/long2d-2"), 
+    dataset = create_u_Y_matrix_for_case(("../new-sim2"), 
     EXAMPLE_2D_SAMPLE_POINTS)
     jldsave(dataset_out; dataset=dataset)
     println("Dataset saved: $dataset_out")
