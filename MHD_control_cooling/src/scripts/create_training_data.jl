@@ -5,9 +5,10 @@ include("../openfoam/real_field.jl")
 includet("../MHD_control_cooling.jl")
 
 using .MHD_control_cooling
+using Statistics
 
 EXAMPLE_2D_SAMPLE_POINTS = stack([
-    [x;y;0.005] for x in 0.025:0.025:0.1 for y in 0.025:0.025:0.1
+    [x;y;0.005] for x in 0.01:0.01:0.1 for y in 0.01:0.01:0.1
 ])
 
 
@@ -92,6 +93,8 @@ function create_u_Y_matrix_for_case(case_path, sample_points; inputs_file=nothin
 
     sort!(time_dirs, by = x -> parse(Float64, x))
     Y = zeros(size(sample_points, 2)+1, length(time_dirs))
+    Y = zeros(400+1, length(time_dirs))
+    
     times = []
     inputs = zeros(8, length(time_dirs))
     last_input = zeros(8)
@@ -101,6 +104,9 @@ function create_u_Y_matrix_for_case(case_path, sample_points; inputs_file=nothin
         time_path = joinpath(case_path, time_dir)
         T = read_field_scalar(joinpath(time_path,
         "T"))
+        Q = read_field_scalar(joinpath(time_path,
+        "wallHeatFlux"))
+        @info mean(Q)
         @info time_path
         if !isnothing(csv_file)
             idx = findlast(df[:, :Time] .<= t)
@@ -120,7 +126,9 @@ function create_u_Y_matrix_for_case(case_path, sample_points; inputs_file=nothin
         end
         inputs[:, i] = input_t
 
-        Y[:, i] = T_out_sampler(cell_tree, cells, T, sample_points, case_path)
+        # Y[:, i] = T_out_sampler(cell_tree, cells, T, sample_points, case_path)
+        Y[1:end-1, i] = T
+        Y[end, i] = mean(Q) 
     end
     if !isnothing(inputs_file)
         inputs_in = datas["inputs"]
@@ -161,7 +169,7 @@ end
 
 function main_for_live(csv_path)
     dataset_out = "./data/dataset-live.jld2"
-    dataset = create_u_Y_matrix_for_case(("../2d-example"), 
+    dataset = create_u_Y_matrix_for_case(("../new-sim2"), 
     EXAMPLE_2D_SAMPLE_POINTS, csv_file=csv_path)
     jldsave(dataset_out; dataset=dataset)
     println("Dataset saved: $dataset_out")

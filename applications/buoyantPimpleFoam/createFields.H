@@ -35,6 +35,21 @@ volVectorField U
     mesh
 );
 
+volVectorField gradT
+(
+    IOobject
+    (
+        "gradT",                // Field name on disk
+        runTime.timeName(),     // Use initial time for IOobject registration
+        mesh,                   // Mesh reference
+        IOobject::NO_READ,      // Do not read this field on startup
+        IOobject::AUTO_WRITE    // **** Write automatically with runTime.write() ****
+    ),
+    mesh, // Associate field with the mesh object
+    // Initialize with zero and correct dimensions for gradient of Temperature [K/m]
+    dimensionedVector("gradT", dimensionSet(0, -1, 0, 1, 0, 0, 0), vector::zero)
+);
+
 #include "compressibleCreatePhi.H"
 
 pressureControl pressureControl(p, rho, pimple.dict(), false);
