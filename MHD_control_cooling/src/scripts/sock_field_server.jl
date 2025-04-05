@@ -72,7 +72,10 @@ function handle_client(client::TCPSocket)
                 println("Extracted float value: $float_value")
                 
                 # Generate some sample data based on the extracted float value
-                data = calculate_force_fields(identification_signal(float_value, 0), centers)
+                input = identification_signal(float_value, 0)
+                data = calculate_force_fields(input, centers)
+                @info "Send input $input"
+
             else
                 println("No valid float value found in the request")
                 data = []
@@ -111,25 +114,25 @@ function identification_signal(t::Real, T_stabilize::Real)
         global last_change = 0
     end
     if t > last_change + holding_time
-        global holding_time = rand()*40+10
+        global holding_time = 300
         global last_change = t
         if t < T_stabilize
             global last_out = zeros(8)
         else
-            global last_out = (rand(8).-0.5).*2*5
+            global last_out = (rand(8).-0.5).*2
         end
     end
     push!(last_outs, last_out)
     if length(last_outs) > N_MA
         global last_outs = last_outs[2:end]
     end
-    out = sum(last_outs)/N_MA
+    out = last_out
 
     open(csv_filename, "a") do file
         println(file, join([t; out...], ","))
     end
 
-    return out 
+    return out
 end
 
 CASE_DIR = "../2d-example/"

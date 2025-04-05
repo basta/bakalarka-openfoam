@@ -17,26 +17,25 @@ macro bind(def, element)
 end
 
 # ╔═╡ abbfee84-0188-11f0-0a28-679196b7d942
-using LinearAlgebra, JLD2, Statistics, CairoMakie, ControlSystems, RollingFunctions, SimplePlutoInclude, Revise, PlutoUI. RollingFunctions, IterativeSolvers , LowRankApprox
+using LinearAlgebra, JLD2, Statistics, CairoMakie, ControlSystems, RollingFunctions, SimplePlutoInclude, Revise, PlutoUI. RollingFunctions, IterativeSolvers , LowRankApprox  
 
 # ╔═╡ 862e5d81-2656-4375-8487-d10d97e5aece
 using PlutoUI
 
 # ╔═╡ 1c11a287-4d02-4f9a-a091-b5cd3ea8174e
 begin
-	X_data = jldopen("../../data/dataset-live.jld2")["dataset"][2];
-	X_data = X_data[1:end-1,:]; 
-	 
-	U_data = jldopen("../../data/dataset-live.jld2")["dataset"][1];
+	X_data = jldopen("../../data/dataset-live.jld2")["dataset"][2]; 
+	X_data = X_data[end:end, :]
+	U_data = jldopen("../../data/dataset-live.jld2")["dataset"][1]; 
 	N_states = size(X_data,1) 
-	N_inputs = Int((size(U_data,1)/2)^2)  
+ 	N_inputs = Int((size(U_data,1)/2)^2)  
 	SHIFT = 5
 end
 
 # ╔═╡ 3474d2bc-982c-430d-a656-8a9a6f211597
 U = let
 	u = U_data[:,1000]
-	cols = []
+	cols = [] 
 	for u in eachcol(U_data)
 		push!(cols, vec(u[1:4]*u[5:8]'))
 	end
@@ -48,9 +47,9 @@ U
 
 # ╔═╡ 8ec3a9df-c25a-4817-b838-8746182346e9
 begin
-	@plutoinclude "../pinverses.jl"    
-	@plutoinclude "../sys_models.jl"        
-end; 
+	@plutoinclude "../pinverses.jl"            
+  	@plutoinclude "../sys_models.jl"              
+end;   
 
 # ╔═╡ 9b35d8b8-bc89-4921-8e09-67e3c9c18213
 begin
@@ -59,41 +58,20 @@ begin
 end 
 
 # ╔═╡ 1af1a5b1-f9fe-4ea9-90b3-d4988eb01606
-@bind start_s PlutoUI.Slider(1000:1:18000, show_value=true)  
-
-# ╔═╡ ed1955af-c8bb-48a8-ad9a-3b7913d96389
-
+@bind start_s PlutoUI.Slider(1000:1:18000, show_value=true)    
 
 # ╔═╡ bbf84e47-3ad5-4f6c-874d-67ae168d007e
 begin
-	delay = 20
-	Nth = 1
-	othermodel_fn = create_delay_step_linmodel_pod_first(X_data, U, delay, Nth, 10)        
-	linmodel_fn = create_linmodel(X_data, U,)      
+	delay = 50
+	Nth = 5
+linmodel_fn = create_static_model(X_data, U, 5)        
 end
 
-
-# ╔═╡ 80caaf05-380c-4b5a-b5ac-fc1c3ac96a94
-begin
-	eval_len = 50
-	N_samples = 300
-	
-	init_len = delay*(Nth-1)
-	using Random
-	seed = 1234
-	Random.seed!(seed)
-
-	avgs = []
-
-	starts = rand(1:10000, N_samples)
-	for start in starts
-		states = simulate_model(X_data[:, start], U[:, start:start+eval_len+init_len], linmodel_fn, X_data[:, start:start+eval_len]) 
-		real_states = X_data[:, start+init_len:start+eval_len+init_len]
-		push!(avgs,mean(abs.(real_states - states[:, init_len+1:end])))
-	end
-	println("Average temperature deviation is $(mean(avgs))")
-	"Average temperature deviation is $(mean(avgs))"
-end
+# ╔═╡ 2a052484-e605-43fb-abe8-7064de5e1e06
+[
+	ones(5),
+	ones
+]
 
 # ╔═╡ 9bb505a2-63f4-4797-8310-99ce24de8c70
 #1.0778729622138035
@@ -102,30 +80,26 @@ end
 let
 	start = 200000
 	start = start_s  
-	
-	len = 200
-	idx = 4
+
+	len = 5000
+	idx = 1
 	states = simulate_model(X_data[:, start], U[:, start:start+len], linmodel_fn, X_data[:, start:start+len]) 
-	states2 = simulate_model(X_data[:, start], U[:, start:start+len], othermodel_fn, X_data[:, start:start+len]) 
 	
     
 	fig = Figure()
 	ax = Axis(fig[1,1])
-	lines!(ax, states[idx, :], label = "nonlin")
-	lines!(ax, states2[idx, :], label = "lin")
-	lines!(ax, X_data[idx, start:start+len], label = "real")
-	
-	# If you uncommented this line, you'd need to add a label for it as well
-	# lines!(ax, [ones(50)*315; rollmean(X_data[idx, start+20:start+len], 1)], label = "rolled_real")
-	
-	axislegend(ax) # Add a legend to display the labels
+	lines!(states[idx,1:end])
+	lines!(X_data[idx, start:start+len])
+	# lines!([ones(50)*315; rollmean(X_data[idx, start+20:start+len], 1)])
 	
 	ax = Axis(fig[2,1])
 	lines!(U_data[1, start:start+len])
 	
-	
-	fig
-end
+	fig 
+end 
+
+# ╔═╡ 80caaf05-380c-4b5a-b5ac-fc1c3ac96a94
+
 
 # ╔═╡ 03087046-3908-4d4b-add0-d672d0548aeb
 
@@ -607,7 +581,6 @@ JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LowRankApprox = "898213cb-b102-5a47-900c-97e73b919f73"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RollingFunctions = "b0e4dd01-7b14-53d8-9b45-175a3e362653"
 SimplePlutoInclude = "6f00a2c5-ea4a-46bf-9183-91b7b57a087f"
@@ -634,7 +607,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "753b38274817b0557030d73473e6ebabfdd5c55a"
+project_hash = "36a09ad5a8e88343e4516377f00c26d69bcf92ce"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -3435,8 +3408,8 @@ version = "3.6.0+0"
 # ╠═e5fcce4f-25a2-487b-a7f5-f8e18d36e8f9
 # ╠═8ec3a9df-c25a-4817-b838-8746182346e9
 # ╠═1af1a5b1-f9fe-4ea9-90b3-d4988eb01606
-# ╠═ed1955af-c8bb-48a8-ad9a-3b7913d96389
 # ╠═bbf84e47-3ad5-4f6c-874d-67ae168d007e
+# ╠═2a052484-e605-43fb-abe8-7064de5e1e06
 # ╠═9bb505a2-63f4-4797-8310-99ce24de8c70
 # ╠═c9ae8e90-de39-40a8-87b7-f7ce896c3d67
 # ╠═80caaf05-380c-4b5a-b5ac-fc1c3ac96a94
