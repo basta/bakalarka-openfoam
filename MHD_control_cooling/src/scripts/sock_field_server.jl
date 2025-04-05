@@ -111,12 +111,12 @@ function identification_signal(t::Real, T_stabilize::Real)
         global last_change = 0
     end
     if t > last_change + holding_time
-        global holding_time = rand()*40+10
+        global holding_time = 300
         global last_change = t
         if t < T_stabilize
             global last_out = zeros(8)
         else
-            global last_out = (rand(8).-0.5).*2
+            global last_out = (rand(8).-0.5)
         end
     end
     push!(last_outs, last_out)
