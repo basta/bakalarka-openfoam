@@ -5,6 +5,7 @@ include("../openfoam/real_field.jl")
 includet("../MHD_control_cooling.jl")
 
 using .MHD_control_cooling
+using Statistics
 
 EXAMPLE_2D_SAMPLE_POINTS = stack([
     [x;y;0.005] for x in 0.01:0.01:0.1 for y in 0.01:0.01:0.1
@@ -101,6 +102,9 @@ function create_u_Y_matrix_for_case(case_path, sample_points; inputs_file=nothin
         time_path = joinpath(case_path, time_dir)
         T = read_field_scalar(joinpath(time_path,
         "T"))
+        Q = read_field_scalar(joinpath(time_path,
+        "wallHeatFlux"))
+        @info mean(Q)
         @info time_path
         if !isnothing(csv_file)
             idx = findlast(df[:, :Time] .<= t)
@@ -121,6 +125,7 @@ function create_u_Y_matrix_for_case(case_path, sample_points; inputs_file=nothin
         inputs[:, i] = input_t
 
         Y[:, i] = T_out_sampler(cell_tree, cells, T, sample_points, case_path)
+        Y[end, i] = mean(Q) 
     end
     if !isnothing(inputs_file)
         inputs_in = datas["inputs"]
