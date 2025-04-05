@@ -17,208 +17,39 @@ macro bind(def, element)
 end
 
 # ╔═╡ abbfee84-0188-11f0-0a28-679196b7d942
-using LinearAlgebra, JLD2, Statistics, CairoMakie, ControlSystems, RollingFunctions, SimplePlutoInclude, Revise, PlutoUI. RollingFunctions, IterativeSolvers , LowRankApprox
-
-# ╔═╡ c32bad11-574c-4182-9288-caa79b36e395
-u_e, u_m = let
-	using JuMP
-	using HiGHS  # You can use other solvers like GLPK, Gurobi, etc.
-	
-	# Example matrix B
-	B = B_sol  # Replace with your actual matrix
-	b = B_sol[1,:]
-	u_e = rand(-10:10, 4)
-	u_m = rand(-10:10, 4)
-	mag_opt = true
-	for i in 1:100
-		mag_opt = !mag_opt
-		model = Model(HiGHS.Optimizer)
-		
-		# Define the decision variables with bounds
-		@variable(model, -10 <= x[1:4] <= 10)
-		
-		# Set the objective to maximize B*x
-		if mag_opt
-			@objective(model, Max, 
-				u_e[1] * (b[1]*x[1] + b[5]*x[2] + b[9] * x[3] + b[13]*x[4]) +
-				u_e[2] * (b[2]*x[1] + b[6]*x[2] + b[10] * x[3] + b[14]*x[4]) +
-				u_e[3] * (b[3]*x[1] + b[7]*x[2] + b[11] * x[3] + b[15]*x[4]) +
-				u_e[4] * (b[4]*x[1] + b[8]*x[2] + b[12] * x[3] + b[16]*x[4])
-			)
-		else
-			@objective(model, Max, 
-				u_m[1] * (b[1]*x[1] +  b[2]*x[2] +  b[3] * x[3] +  b[4]*x[4]) +
-				u_m[2] * (b[5]*x[1] +  b[6]*x[2] +  b[7] * x[3] +  b[8]*x[4]) +
-				u_m[3] * (b[9]*x[1] +  b[10]*x[2] + b[11] * x[3] + b[12]*x[4]) +
-				u_m[4] * (b[13]*x[1] + b[14]*x[2] + b[15] * x[3] + b[16]*x[4])
-			)
-		end
-		
-		
-		# Solve the model
-		optimize!(model)
-		
-		# Get the optimal solution
-		x_optimal = value.(x)
-		if mag_opt
-			u_m = x_optimal
-		else
-			u_e = x_optimal
-		end
-		objective_value = JuMP.objective_value(model)
-		
-		println("Optimal x: ", x_optimal)
-	end
-	@info "Found optimal with $objective_value"
-	u_e, u_m
-end
+using LinearAlgebra, JLD2, Statistics, CairoMakie, ControlSystems, RollingFunctions, SimplePlutoInclude, Revise, PlutoUI. RollingFunctions, IterativeSolvers , LowRankApprox  
 
 # ╔═╡ 862e5d81-2656-4375-8487-d10d97e5aece
 using PlutoUI
 
-# ╔═╡ 1c11a287-4d02-4f9a-a091-b5cd3ea8174e
-begin
-	X_data = jldopen("../../data/dataset-live.jld2")["dataset"][2];
-	X_data = X_data[1:400,:]; 
-	 
-	U_data = jldopen("../../data/dataset-live.jld2")["dataset"][1];
-	N_states = size(X_data,1)   
-	N_inputs = Int((size(U_data,1)/2)^2)  
-	SHIFT = 5
-end
-
-# ╔═╡ 3474d2bc-982c-430d-a656-8a9a6f211597
-U = let
-	u = U_data[:,1000]
-	cols = []
-	for u in eachcol(U_data)
-		push!(cols, vec(u[1:4]*u[5:8]'))
-	end
-	stack(cols)[:, :]
-end
-
-# ╔═╡ e5fcce4f-25a2-487b-a7f5-f8e18d36e8f9
-U
-
 # ╔═╡ 8ec3a9df-c25a-4817-b838-8746182346e9
 begin
-	@plutoinclude "../pinverses.jl"    
-	@plutoinclude "../sys_models.jl"         
-end; 
-
-# ╔═╡ 9b35d8b8-bc89-4921-8e09-67e3c9c18213
-begin
-	include("../sys_models.jl")
-	create_linmodel(X_data, U)
-end 
+	@plutoinclude "../pinverses.jl"            
+  	@plutoinclude "../sys_models.jl"              
+end;   
 
 # ╔═╡ 1af1a5b1-f9fe-4ea9-90b3-d4988eb01606
+@bind start_s PlutoUI.Slider(1000:1:18000, show_value=true)    
 
-
-# ╔═╡ bbf84e47-3ad5-4f6c-874d-67ae168d007e
-begin
-	delay = 2
-	Nth = 1
-	model_fn = create_delay_step_linmodel_pod_first(X_data, U, delay, Nth, 400)  
-	linmodel_fn = create_linmodel(X_data, U)      
-end 
-
-
-# ╔═╡ 80caaf05-380c-4b5a-b5ac-fc1c3ac96a94
-begin
-	eval_len = 50
-	N_samples = 300
-	
-	init_len = delay*(Nth-1)
-	using Random
-	seed = 1234
-	Random.seed!(seed)
-
-	avgs = []
-
-	starts = rand(1:10000, N_samples)
-	for start in starts
-		states = simulate_model(X_data[:, start], U[:, start:start+eval_len+init_len], linmodel_fn, X_data[:, start:start+eval_len]) 
-		real_states = X_data[:, start+init_len:start+eval_len+init_len]
-		push!(avgs,mean(abs.(real_states - states[:, init_len+1:end])))
-	end
-	println("Average temperature deviation is $(mean(avgs))")
-	"Average temperature deviation is $(mean(avgs))"
-end
+# ╔═╡ 2a052484-e605-43fb-abe8-7064de5e1e06
+[
+	ones(5),
+	ones
+]
 
 # ╔═╡ 9bb505a2-63f4-4797-8310-99ce24de8c70
-@bind start_s PlutoUI.Slider(5000:1:7000, show_value=true)  
+#1.0778729622138035
 
-# ╔═╡ c9ae8e90-de39-40a8-87b7-f7ce896c3d67
-begin
-	start = 200000
-	start = start_s  
-	
-	len = 700
-	idx = 20
-	states = simulate_model(X_data[:, start], U[:, start:start+len], model_fn, X_data[:, start:start+len]) 
-	states2 = simulate_model(X_data[:, start], U[:, start:start+len], linmodel_fn, X_data[:, start:start+len]) 
-	
-    
-	fig = Figure()
-	ax = Axis(fig[1,1])
-	lines!(ax, states[idx, :], label = "model")
-	lines!(ax, states2[idx, :], label = "lin")
-	lines!(ax, X_data[idx, start:start+len], label = "real")
-	
-	# If you uncommented this line, you'd need to add a label for it as well
-	# lines!(ax, [ones(50)*315; rollmean(X_data[idx, start+20:start+len], 1)], label = "rolled_real")
-	
-	axislegend(ax) # Add a legend to display the labels
-	
-	ax = Axis(fig[2,1])
-	lines!(U_data[1, start:start+len])
-	
-	
-	fig
-end
+# ╔═╡ 80caaf05-380c-4b5a-b5ac-fc1c3ac96a94
+
 
 # ╔═╡ 03087046-3908-4d4b-add0-d672d0548aeb
-rada
 
-# ╔═╡ e6e88899-cd4c-4922-a53b-eda8b88ec030
-@bind n_predict PlutoUI.Slider(1:len, show_value=true)
-
-# ╔═╡ a9e3bf47-e034-4e79-937a-52fd15d55685
-
-
-# ╔═╡ e4d1e00a-0001-473f-b79d-fc96a3642a4c
-let
-	fig_compare = Figure(size=(800,400)); 
-	real_data = X_data[:, start:start+len]
-	
-	ax = Axis(fig_compare[1,1])
-	heatmap!(reshape(states[:, n_predict], 20, 20))
-	ax = Axis(fig_compare[1,2])
-	heatmap!(reshape(real_data[1:N_states, n_predict], 20, 20))
-	Label(fig_compare[0,1:2], "State at $n_predict steps in the future")
-	fig_compare
-end
-
-# ╔═╡ 30bd179e-7042-45ca-b82b-4ed25fd9ea6d
-X_data[:,2000:end]
 
 # ╔═╡ 84a20361-e435-426d-b3b2-aa4313a097b9
 
 
 # ╔═╡ d25e1020-036e-4357-9fee-938e916f0098
-
-
-# ╔═╡ 5d864b89-5b85-473d-b069-de56eb35b818
-# ╠═╡ disabled = true
-#=╠═╡
-X = X_data[:, 1:end-1]; U = U
-  ╠═╡ =#
-
-# ╔═╡ 5cb8ee92-4a70-47c2-afd4-fa8291d7c83e
-
-
-# ╔═╡ 22f279eb-22ed-4d15-a26b-a02e4f619f84
 
 
 # ╔═╡ a46a786e-f154-4aa6-9c54-2ee7751654fd
@@ -234,12 +65,6 @@ X = X_data[:, 1:end-1]; U = U
 # 	lines!(ax, (residuals[1:end]))
 # 	fig
 # end
-
-# ╔═╡ 50cdc015-09f8-497a-9303-dc8a48b836f9
-
-
-# ╔═╡ a1028443-272f-43a1-925a-afd1662bed5f
-sum(mean(abs.((solution * X_combined ) .- X_next), dims=2))
 
 # ╔═╡ 9584aa87-d692-4c29-967e-ca3fbd337da7
 function eval_solution(X_combined, solution; n_moving=0)
@@ -304,17 +129,170 @@ function eval_solution(X_combined, solution; n_moving=0)
 	fig
 end
 
+# ╔═╡ 30bd179e-7042-45ca-b82b-4ed25fd9ea6d
+#=╠═╡
+X_data[:,2000:end]
+  ╠═╡ =#
+
+# ╔═╡ e5fcce4f-25a2-487b-a7f5-f8e18d36e8f9
+#=╠═╡
+U
+  ╠═╡ =#
+
+# ╔═╡ bbf84e47-3ad5-4f6c-874d-67ae168d007e
+#=╠═╡
+begin
+	delay = 50
+	Nth = 5
+linmodel_fn = create_static_model(X_data, U, 5)        
+end
+  ╠═╡ =#
+
+# ╔═╡ c9ae8e90-de39-40a8-87b7-f7ce896c3d67
+#=╠═╡
+let
+	start = 200000
+	start = start_s  
+
+	len = 5000
+	idx = 1
+	states = simulate_model(X_data[:, start], U[:, start:start+len], linmodel_fn, X_data[:, start:start+len]) 
+	
+    
+	fig = Figure()
+	ax = Axis(fig[1,1])
+	lines!(states[idx,1:end])
+	lines!(X_data[idx, start:start+len])
+	# lines!([ones(50)*315; rollmean(X_data[idx, start+20:start+len], 1)])
+	
+	ax = Axis(fig[2,1])
+	lines!(U_data[1, start:start+len])
+	
+	fig 
+end 
+  ╠═╡ =#
+
+# ╔═╡ e4d1e00a-0001-473f-b79d-fc96a3642a4c
+#=╠═╡
+X_shifted_data, U_shifted = let 
+	shift = SHIFT 
+	X_shifted_data = zeros(0, size(X_data,2)-shift)
+	for i in 0:shift
+		X_shifted_data = [
+			X_shifted_data; 
+			X_data[:, 1+(shift-i):end-i]
+		]
+	end
+	X_shifted_data, U[:, 1+shift:end]
+end
+  ╠═╡ =#
+
+# ╔═╡ 5cb8ee92-4a70-47c2-afd4-fa8291d7c83e
+#=╠═╡
+begin
+	# X_combined = [X; U; ones(1,size(X,2))]
+	X_next = X_data[:, 2:end]
+	X_combined = [
+		X_shifted_data[:, 1:end-1];
+		U_shifted[:, 1:end-1]; 
+		ones(1,size(X_shifted_data,2)-1)
+	]
+	X_next = X_shifted_data[1:N_states, 2:end]
+	solution = X_next*pinv(X_combined)
+end
+  ╠═╡ =#
+
+# ╔═╡ 22f279eb-22ed-4d15-a26b-a02e4f619f84
+#=╠═╡
+X_next
+  ╠═╡ =#
+
+# ╔═╡ 50cdc015-09f8-497a-9303-dc8a48b836f9
+#=╠═╡
+begin
+	A_sol = solution[:, 1:N_states]
+	B_sol = solution[:, N_states+1:N_states+N_inputs+1]
+	S_sol = solution[:, end];
+end
+  ╠═╡ =#
+
+# ╔═╡ c32bad11-574c-4182-9288-caa79b36e395
+#=╠═╡
+u_e, u_m = let
+	using JuMP
+	using HiGHS  # You can use other solvers like GLPK, Gurobi, etc.
+	
+	# Example matrix B
+	B = B_sol  # Replace with your actual matrix
+	b = B_sol[1,:]
+	u_e = rand(-10:10, 4)
+	u_m = rand(-10:10, 4)
+	mag_opt = true
+	for i in 1:100
+		mag_opt = !mag_opt
+		model = Model(HiGHS.Optimizer)
+		
+		# Define the decision variables with bounds
+		@variable(model, -10 <= x[1:4] <= 10)
+		
+		# Set the objective to maximize B*x
+		if mag_opt
+			@objective(model, Max, 
+				u_e[1] * (b[1]*x[1] + b[5]*x[2] + b[9] * x[3] + b[13]*x[4]) +
+				u_e[2] * (b[2]*x[1] + b[6]*x[2] + b[10] * x[3] + b[14]*x[4]) +
+				u_e[3] * (b[3]*x[1] + b[7]*x[2] + b[11] * x[3] + b[15]*x[4]) +
+				u_e[4] * (b[4]*x[1] + b[8]*x[2] + b[12] * x[3] + b[16]*x[4])
+			)
+		else
+			@objective(model, Max, 
+				u_m[1] * (b[1]*x[1] +  b[2]*x[2] +  b[3] * x[3] +  b[4]*x[4]) +
+				u_m[2] * (b[5]*x[1] +  b[6]*x[2] +  b[7] * x[3] +  b[8]*x[4]) +
+				u_m[3] * (b[9]*x[1] +  b[10]*x[2] + b[11] * x[3] + b[12]*x[4]) +
+				u_m[4] * (b[13]*x[1] + b[14]*x[2] + b[15] * x[3] + b[16]*x[4])
+			)
+		end
+		
+		
+		# Solve the model
+		optimize!(model)
+		
+		# Get the optimal solution
+		x_optimal = value.(x)
+		if mag_opt
+			u_m = x_optimal
+		else
+			u_e = x_optimal
+		end
+		objective_value = JuMP.objective_value(model)
+		
+		println("Optimal x: ", x_optimal)
+	end
+	@info "Found optimal with $objective_value"
+	u_e, u_m
+end
+  ╠═╡ =#
+
+# ╔═╡ a1028443-272f-43a1-925a-afd1662bed5f
+#=╠═╡
+sum(mean(abs.((solution * X_combined ) .- X_next), dims=2))
+  ╠═╡ =#
+
 # ╔═╡ 8a2bd001-b371-439a-ba64-907deaee0769
+#=╠═╡
 let
 	start = 10000
 	len = 50
 	eval_solution(X_combined[:, start:start+len], solution)
 end
+  ╠═╡ =#
 
 # ╔═╡ a2547bdd-3d27-4eea-a111-2d009d430da4
+#=╠═╡
 X_combined
+  ╠═╡ =#
 
 # ╔═╡ a058051a-74fe-41de-b56d-7ed9f5f0f6eb
+#=╠═╡
 let
 	fig = Figure()
 	ax = Axis(fig[1,1])
@@ -322,29 +300,23 @@ let
 	fig
 end
 
-
-# ╔═╡ 3f2b487e-a659-46ff-b527-78db1bcbc422
-# ╠═╡ disabled = true
-#=╠═╡
-X_data =  jldopen("../../data/dataset-long.jld2")["dataset"][2]
   ╠═╡ =#
 
-# ╔═╡ 83b5db7b-7157-4c48-9a90-ec3d6ef57939
-# ╠═╡ disabled = true
+# ╔═╡ 9b35d8b8-bc89-4921-8e09-67e3c9c18213
 #=╠═╡
-X = diagm(ones(2))
-  ╠═╡ =#
-
-# ╔═╡ c22bad70-80b1-4bc2-b699-9e982c1403d7
-# ╠═╡ disabled = true
-#=╠═╡
-U = ones(2,2q)
+begin
+	include("../sys_models.jl")
+	create_linmodel(X_data, U)
+end 
   ╠═╡ =#
 
 # ╔═╡ 306a44fd-3a7a-4b3f-976b-f467393490f7
+#=╠═╡
 A = X_next*pinv(X);
+  ╠═╡ =#
 
 # ╔═╡ 87e5ce14-f973-4089-a4ca-cf612a9703b9
+#=╠═╡
 let
 	vals, vecs = eigen(A_sol[1:16, 1:16])
 	mat = zeros(4,4,16)
@@ -361,8 +333,48 @@ let
 	end
 	fig
 end;
+  ╠═╡ =#
+
+# ╔═╡ c3690724-85db-473a-9b0b-312f095bf03f
+#=╠═╡
+let
+	vecs = zeros(16,16)
+	inpts = [
+		[1,0,0,0,1,0,0,0],
+		[1,0,0,0,0,1,0,0],
+		[1,0,0,0,0,0,1,0],
+		[1,0,0,0,0,0,0,1],
+		[0,1,0,0,1,0,0,0],
+		[0,1,0,0,0,1,0,0],
+		[0,1,0,0,0,0,1,0],
+		[0,1,0,0,0,0,0,1],
+		
+	]
+	for (i, inp) in enumerate(inpts)
+		inp = inp[1:4] * inp[5:8]'
+		inp = vec(inp)
+		v = B_sol*inp
+		v = v[1:end-1]
+		vecs[:, i] = v
+	end
+	mat = zeros(4,4,16)
+	fig = Figure()
+	for k in 1:16
+		ax = Axis(fig[(k-1)÷4+1, k%4 + 1], title="$(k)")
+		for i in 1:4
+			for j in 1:4
+				vec = vecs[:,k]
+				mat[:,:,k] = real.(reshape(vec,4,4))
+			end
+			heatmap!(ax, mat[:, :, k])
+		end
+	end
+	fig
+end
+  ╠═╡ =#
 
 # ╔═╡ ba098a8f-7436-49b4-9601-194e97f73631
+#=╠═╡
 y,_,x_lqr,u_lqr = let
 	A = zeros(18,18)
 	A[1:17, 1:17] = A_sol
@@ -380,8 +392,10 @@ y,_,x_lqr,u_lqr = let
 	t = 0:Ts:10
 	y,t,x,uout = lsim(sys, u, t, x0=initial)
 end
+  ╠═╡ =#
 
 # ╔═╡ f2688a92-0b93-4487-88ce-304aae2f2ba4
+#=╠═╡
 let
 	fig = Figure()
 	ax = Axis(fig[1,1])
@@ -394,8 +408,10 @@ let
 	end
 	fig
 end
+  ╠═╡ =#
 
 # ╔═╡ 80831320-3d45-4232-bb1b-aeb1e0195c7b
+#=╠═╡
 let
 	X_optimal = copy(X_combined)
 	X_optimal[18:33, :] .= vec(u_e*u_m')
@@ -403,11 +419,13 @@ let
 	len = 700
 	eval_solution(X_optimal[:, start:start+len], solution, n_moving=50)
 end
+  ╠═╡ =#
 
 # ╔═╡ 3504815a-313c-4b07-8f15-0079c92331cd
 @bind startoff PlutoUI.Slider(1:10000)
 
 # ╔═╡ 75636f3a-54b2-4e72-8ae2-fcb9bdebe7e6
+#=╠═╡
 let
 	fig = Figure(resolution=(800, 800), title="Comparison of linear model and simulation data")
 	start = 50000+startoff
@@ -437,8 +455,10 @@ let
 	save("T.svg", fig)
 	fig
 end
+  ╠═╡ =#
 
 # ╔═╡ 3d89abd4-ec13-47f0-a290-0e19c104eb63
+#=╠═╡
 function solve_input(A, B, ref, C, S, iters=100, starts=10, max_inp=10)
 	# Expects u_el times v_mag
 	# B = diagm(C)*B
@@ -486,8 +506,10 @@ function solve_input(A, B, ref, C, S, iters=100, starts=10, max_inp=10)
 	end
 	return best_in, residuals, inv(I - A)*(B*vec(best_in[1:4]*best_in[5:8]')+S)
 end
+  ╠═╡ =#
 
 # ╔═╡ da1bb73f-1a17-4d1d-9eb4-a47514b1535f
+#=╠═╡
 inp,res,final_r = let
 	ss = inv(I - A_sol)*(S_sol)
 	C = [1;0;0;0; zeros(13)]
@@ -499,17 +521,23 @@ inp,res,final_r = let
 	inp, res, final_r = solve_input(A_sol, B_sol, r, C, S_sol, 100, 50, 5);
 	inp,res,final_r
 end
+  ╠═╡ =#
 
 # ╔═╡ a886c61f-bc43-4d0f-a67f-e046e8a9e946
+#=╠═╡
 minimum(res)
+  ╠═╡ =#
 
 # ╔═╡ 8abb11a0-890e-4344-b26e-7210bacba58b
+#=╠═╡
 final_r
+  ╠═╡ =#
 
 # ╔═╡ 8ef70851-06be-4bc3-82ef-1a25c2140a6b
 
 
 # ╔═╡ 700a5d53-cc8b-4bac-a7c3-1fc64b5463f2
+#=╠═╡
 let
 	X_optimal = copy(X_combined)
 	X_optimal[18:33, :] .= vec(inp[1:4]*inp[5:8]')
@@ -519,8 +547,10 @@ let
 	len = 700
 	eval_solution(X_optimal[:, start:start+len], solution)
 end
+  ╠═╡ =#
 
 # ╔═╡ bb38a269-d5ca-4e70-9285-11cd0ff34f7e
+#=╠═╡
 let
 	u = rand(4)
 	B = B_sol
@@ -540,9 +570,60 @@ let
 	inv(I - A)*(B*vec(best_in[1:4]*best_in[5:8]')+S_sol)
 	best_in[1:4]*best_in[5:8]'
 end
+  ╠═╡ =#
 
 # ╔═╡ 99dfdb21-51dc-4ff1-bdaa-57407eeeb81c
+#=╠═╡
 diagm([1 zeros(16)']')*B_sol
+  ╠═╡ =#
+
+# ╔═╡ 3f2b487e-a659-46ff-b527-78db1bcbc422
+# ╠═╡ disabled = true
+#=╠═╡
+X_data =  jldopen("../../data/dataset-long.jld2")["dataset"][2]
+  ╠═╡ =#
+
+# ╔═╡ 5d864b89-5b85-473d-b069-de56eb35b818
+# ╠═╡ disabled = true
+#=╠═╡
+X = X_data[:, 1:end-1]; U = U
+  ╠═╡ =#
+
+# ╔═╡ 1c11a287-4d02-4f9a-a091-b5cd3ea8174e
+#=╠═╡
+begin
+	X_data = jldopen("../../data/dataset-live.jld2")["dataset"][2]; 
+	X_data = X_data[end:end, :]
+	U_data = jldopen("../../data/dataset-live.jld2")["dataset"][1]; 
+	N_states = size(X_data,1) 
+ 	N_inputs = Int((size(U_data,1)/2)^2)  
+	SHIFT = 5
+end
+  ╠═╡ =#
+
+# ╔═╡ c22bad70-80b1-4bc2-b699-9e982c1403d7
+# ╠═╡ disabled = true
+#=╠═╡
+U = ones(2,2q)
+  ╠═╡ =#
+
+# ╔═╡ 83b5db7b-7157-4c48-9a90-ec3d6ef57939
+# ╠═╡ disabled = true
+#=╠═╡
+X = diagm(ones(2))
+  ╠═╡ =#
+
+# ╔═╡ 3474d2bc-982c-430d-a656-8a9a6f211597
+#=╠═╡
+U = let
+	u = U_data[:,1000]
+	cols = [] 
+	for u in eachcol(U_data)
+		push!(cols, vec(u[1:4]*u[5:8]'))
+	end
+	stack(cols)[:, :]
+end
+  ╠═╡ =#
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -556,7 +637,6 @@ JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LowRankApprox = "898213cb-b102-5a47-900c-97e73b919f73"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RollingFunctions = "b0e4dd01-7b14-53d8-9b45-175a3e362653"
 SimplePlutoInclude = "6f00a2c5-ea4a-46bf-9183-91b7b57a087f"
@@ -581,9 +661,9 @@ Statistics = "~1.11.1"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.4"
+julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "753b38274817b0557030d73473e6ebabfdd5c55a"
+project_hash = "36a09ad5a8e88343e4516377f00c26d69bcf92ce"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -2251,7 +2331,7 @@ version = "3.2.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+4"
+version = "0.8.1+2"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -3385,12 +3465,11 @@ version = "3.6.0+0"
 # ╠═8ec3a9df-c25a-4817-b838-8746182346e9
 # ╠═1af1a5b1-f9fe-4ea9-90b3-d4988eb01606
 # ╠═bbf84e47-3ad5-4f6c-874d-67ae168d007e
+# ╠═2a052484-e605-43fb-abe8-7064de5e1e06
 # ╠═9bb505a2-63f4-4797-8310-99ce24de8c70
 # ╠═c9ae8e90-de39-40a8-87b7-f7ce896c3d67
 # ╠═80caaf05-380c-4b5a-b5ac-fc1c3ac96a94
 # ╠═03087046-3908-4d4b-add0-d672d0548aeb
-# ╠═e6e88899-cd4c-4922-a53b-eda8b88ec030
-# ╠═a9e3bf47-e034-4e79-937a-52fd15d55685
 # ╠═e4d1e00a-0001-473f-b79d-fc96a3642a4c
 # ╠═9b35d8b8-bc89-4921-8e09-67e3c9c18213
 # ╠═30bd179e-7042-45ca-b82b-4ed25fd9ea6d
@@ -3411,6 +3490,7 @@ version = "3.6.0+0"
 # ╠═c22bad70-80b1-4bc2-b699-9e982c1403d7
 # ╠═306a44fd-3a7a-4b3f-976b-f467393490f7
 # ╠═87e5ce14-f973-4089-a4ca-cf612a9703b9
+# ╠═c3690724-85db-473a-9b0b-312f095bf03f
 # ╠═ba098a8f-7436-49b4-9601-194e97f73631
 # ╠═f2688a92-0b93-4487-88ce-304aae2f2ba4
 # ╠═c32bad11-574c-4182-9288-caa79b36e395

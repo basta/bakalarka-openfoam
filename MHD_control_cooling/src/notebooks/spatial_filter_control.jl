@@ -4,166 +4,87 @@
 using Markdown
 using InteractiveUtils
 
-# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
-macro bind(def, element)
-    #! format: off
-    quote
-        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
-        local el = $(esc(element))
-        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
-        el
-    end
-    #! format: on
-end
-
-# ╔═╡ abbfee84-0188-11f0-0a28-679196b7d942
+# ╔═╡ bdfd3f28-2b8c-4736-860a-d8a93575e2cf
 using LinearAlgebra, JLD2, Statistics, CairoMakie, ControlSystems, RollingFunctions, SimplePlutoInclude, Revise, PlutoUI. RollingFunctions, IterativeSolvers , LowRankApprox
 
-# ╔═╡ c32bad11-574c-4182-9288-caa79b36e395
-u_e, u_m = let
-	using JuMP
-	using HiGHS  # You can use other solvers like GLPK, Gurobi, etc.
-	
-	# Example matrix B
-	B = B_sol  # Replace with your actual matrix
-	b = B_sol[1,:]
-	u_e = rand(-10:10, 4)
-	u_m = rand(-10:10, 4)
-	mag_opt = true
-	for i in 1:100
-		mag_opt = !mag_opt
-		model = Model(HiGHS.Optimizer)
-		
-		# Define the decision variables with bounds
-		@variable(model, -10 <= x[1:4] <= 10)
-		
-		# Set the objective to maximize B*x
-		if mag_opt
-			@objective(model, Max, 
-				u_e[1] * (b[1]*x[1] + b[5]*x[2] + b[9] * x[3] + b[13]*x[4]) +
-				u_e[2] * (b[2]*x[1] + b[6]*x[2] + b[10] * x[3] + b[14]*x[4]) +
-				u_e[3] * (b[3]*x[1] + b[7]*x[2] + b[11] * x[3] + b[15]*x[4]) +
-				u_e[4] * (b[4]*x[1] + b[8]*x[2] + b[12] * x[3] + b[16]*x[4])
-			)
-		else
-			@objective(model, Max, 
-				u_m[1] * (b[1]*x[1] +  b[2]*x[2] +  b[3] * x[3] +  b[4]*x[4]) +
-				u_m[2] * (b[5]*x[1] +  b[6]*x[2] +  b[7] * x[3] +  b[8]*x[4]) +
-				u_m[3] * (b[9]*x[1] +  b[10]*x[2] + b[11] * x[3] + b[12]*x[4]) +
-				u_m[4] * (b[13]*x[1] + b[14]*x[2] + b[15] * x[3] + b[16]*x[4])
-			)
-		end
-		
-		
-		# Solve the model
-		optimize!(model)
-		
-		# Get the optimal solution
-		x_optimal = value.(x)
-		if mag_opt
-			u_m = x_optimal
-		else
-			u_e = x_optimal
-		end
-		objective_value = JuMP.objective_value(model)
-		
-		println("Optimal x: ", x_optimal)
-	end
-	@info "Found optimal with $objective_value"
-	u_e, u_m
-end
-
-# ╔═╡ 862e5d81-2656-4375-8487-d10d97e5aece
-using PlutoUI
-
-# ╔═╡ 1c11a287-4d02-4f9a-a091-b5cd3ea8174e
+# ╔═╡ 8904c6ba-100d-11f0-1cae-dd7cfe78e1a5
 begin
 	X_data = jldopen("../../data/dataset-live.jld2")["dataset"][2];
-	X_data = X_data[1:400,:]; 
-	 
+	X_data = X_data[1:end-1,:]; 
+	
 	U_data = jldopen("../../data/dataset-live.jld2")["dataset"][1];
-	N_states = size(X_data,1)   
+	N_states = size(X_data,1) 
 	N_inputs = Int((size(U_data,1)/2)^2)  
 	SHIFT = 5
-end
-
-# ╔═╡ 3474d2bc-982c-430d-a656-8a9a6f211597
-U = let
-	u = U_data[:,1000]
-	cols = []
-	for u in eachcol(U_data)
-		push!(cols, vec(u[1:4]*u[5:8]'))
+	U = let
+		u = U_data[:,1000]
+		cols = []
+		for u in eachcol(U_data)
+			push!(cols, vec(u[1:4]*u[5:8]'))
+		end
+		stack(cols)[:, :]
 	end
-	stack(cols)[:, :]
 end
 
-# ╔═╡ e5fcce4f-25a2-487b-a7f5-f8e18d36e8f9
-U
+# ╔═╡ f4f07dd0-b0e1-4f24-b007-b63380fe1a4a
+sensor_data = reshape(X_data[1:end, :], 10, 10, :)
 
-# ╔═╡ 8ec3a9df-c25a-4817-b838-8746182346e9
+# ╔═╡ 707ece4b-9ea5-4a43-b68d-bf07e9cb1017
+begin
+	X_squares = zeros(4, size(sensor_data,3))
+	for i in 1:size(sensor_data,3)
+		X_squares[1, i] = mean(sensor_data[1:5, 1:5, i])
+		X_squares[2, i] = mean(sensor_data[6:10, 1:5, i])
+		X_squares[3, i] = mean(sensor_data[1:5, 6:10, i])
+		X_squares[4, i] = mean(sensor_data[6:10, 6:10, i])
+	end
+	X_squares
+end
+
+# ╔═╡ c56b3e21-bf26-4302-bbca-62172108509f
+begin
+	X_strips = zeros(5, size(sensor_data,3))
+	for i in 1:size(sensor_data,3)
+		X_strips[1, i] = mean(sensor_data[1:end, 1:2, i])
+		X_strips[2, i] = mean(sensor_data[1:end, 3:4, i])
+		X_strips[3, i] = mean(sensor_data[1:end, 5:6, i])
+		X_strips[4, i] = mean(sensor_data[1:end, 7:8, i])
+		X_strips[5, i] = mean(sensor_data[1:end, 9:10, i])
+	end
+	X_strips
+end
+
+# ╔═╡ 38cc6b4c-473e-433f-98f6-d1fd4c1bfad4
+begin
+	fig = Figure()
+	ax = Axis(fig[1,1])
+	for i in 1:4
+		lines!(X_squares[i, 2000:2100])
+	end
+	fig
+end
+
+# ╔═╡ 7b519009-60f9-420b-8bb7-6cad980035c1
 begin
 	@plutoinclude "../pinverses.jl"    
-	@plutoinclude "../sys_models.jl"         
+	@plutoinclude "../sys_models.jl"        
 end; 
 
-# ╔═╡ 9b35d8b8-bc89-4921-8e09-67e3c9c18213
-begin
-	include("../sys_models.jl")
-	create_linmodel(X_data, U)
-end 
+# ╔═╡ 0c5c165a-f7ef-454c-b283-bf937b6381b3
+linmodel_fn = create_delay_step_linmodel_pod_first(X_data, U, 5, 1, 10)  
 
-# ╔═╡ 1af1a5b1-f9fe-4ea9-90b3-d4988eb01606
-
-
-# ╔═╡ bbf84e47-3ad5-4f6c-874d-67ae168d007e
-begin
-	delay = 2
-	Nth = 1
-	model_fn = create_delay_step_linmodel_pod_first(X_data, U, delay, Nth, 400)  
-	linmodel_fn = create_linmodel(X_data, U)      
-end 
-
-
-# ╔═╡ 80caaf05-380c-4b5a-b5ac-fc1c3ac96a94
-begin
-	eval_len = 50
-	N_samples = 300
+# ╔═╡ dd65216a-003c-4de9-8f3b-19172a4b971d
+let
+	start = 1000
 	
-	init_len = delay*(Nth-1)
-	using Random
-	seed = 1234
-	Random.seed!(seed)
+	len = 80
+	idx = 4
+	states = simulate_model(X_data[:, start], U[:, start:start+len], linmodel_fn, X_data[:, start:start+len]) 
 
-	avgs = []
-
-	starts = rand(1:10000, N_samples)
-	for start in starts
-		states = simulate_model(X_data[:, start], U[:, start:start+eval_len+init_len], linmodel_fn, X_data[:, start:start+eval_len]) 
-		real_states = X_data[:, start+init_len:start+eval_len+init_len]
-		push!(avgs,mean(abs.(real_states - states[:, init_len+1:end])))
-	end
-	println("Average temperature deviation is $(mean(avgs))")
-	"Average temperature deviation is $(mean(avgs))"
-end
-
-# ╔═╡ 9bb505a2-63f4-4797-8310-99ce24de8c70
-@bind start_s PlutoUI.Slider(5000:1:7000, show_value=true)  
-
-# ╔═╡ c9ae8e90-de39-40a8-87b7-f7ce896c3d67
-begin
-	start = 200000
-	start = start_s  
-	
-	len = 700
-	idx = 20
-	states = simulate_model(X_data[:, start], U[:, start:start+len], model_fn, X_data[:, start:start+len]) 
-	states2 = simulate_model(X_data[:, start], U[:, start:start+len], linmodel_fn, X_data[:, start:start+len]) 
-	
     
 	fig = Figure()
 	ax = Axis(fig[1,1])
-	lines!(ax, states[idx, :], label = "model")
-	lines!(ax, states2[idx, :], label = "lin")
+	lines!(ax, states[idx, :], label = "nonlin")
 	lines!(ax, X_data[idx, start:start+len], label = "real")
 	
 	# If you uncommented this line, you'd need to add a label for it as well
@@ -178,385 +99,16 @@ begin
 	fig
 end
 
-# ╔═╡ 03087046-3908-4d4b-add0-d672d0548aeb
-rada
-
-# ╔═╡ e6e88899-cd4c-4922-a53b-eda8b88ec030
-@bind n_predict PlutoUI.Slider(1:len, show_value=true)
-
-# ╔═╡ a9e3bf47-e034-4e79-937a-52fd15d55685
-
-
-# ╔═╡ e4d1e00a-0001-473f-b79d-fc96a3642a4c
-let
-	fig_compare = Figure(size=(800,400)); 
-	real_data = X_data[:, start:start+len]
-	
-	ax = Axis(fig_compare[1,1])
-	heatmap!(reshape(states[:, n_predict], 20, 20))
-	ax = Axis(fig_compare[1,2])
-	heatmap!(reshape(real_data[1:N_states, n_predict], 20, 20))
-	Label(fig_compare[0,1:2], "State at $n_predict steps in the future")
-	fig_compare
-end
-
-# ╔═╡ 30bd179e-7042-45ca-b82b-4ed25fd9ea6d
-X_data[:,2000:end]
-
-# ╔═╡ 84a20361-e435-426d-b3b2-aa4313a097b9
-
-
-# ╔═╡ d25e1020-036e-4357-9fee-938e916f0098
-
-
-# ╔═╡ 5d864b89-5b85-473d-b069-de56eb35b818
-# ╠═╡ disabled = true
-#=╠═╡
-X = X_data[:, 1:end-1]; U = U
-  ╠═╡ =#
-
-# ╔═╡ 5cb8ee92-4a70-47c2-afd4-fa8291d7c83e
-
-
-# ╔═╡ 22f279eb-22ed-4d15-a26b-a02e4f619f84
-
-
-# ╔═╡ a46a786e-f154-4aa6-9c54-2ee7751654fd
-# let
-# 	residuals = []
-# 	for cutoff in 1:10000:size(X_combined,2)
-# 		solution = X_next[:,1:cutoff]*pinv(X_combined[:,1:cutoff])
-# 		res = sum(mean(abs.((solution * X_combined ) .- X_next), dims=2))
-# 		push!(residuals, res)
-# 	end
-# 	fig = Figure()
-# 	ax = Axis(fig[1,1])
-# 	lines!(ax, (residuals[1:end]))
-# 	fig
-# end
-
-# ╔═╡ 50cdc015-09f8-497a-9303-dc8a48b836f9
-
-
-# ╔═╡ a1028443-272f-43a1-925a-afd1662bed5f
-sum(mean(abs.((solution * X_combined ) .- X_next), dims=2))
-
-# ╔═╡ 9584aa87-d692-4c29-967e-ca3fbd337da7
-function eval_solution(X_combined, solution; n_moving=0)
-	shift = SHIFT
-	fig = Figure(resolution=(800, 800), title="Comparison of linear model and simulation data")
-	state_xu = X_combined[:, shift+1]
-	states_xu = X_combined[:, 1:shift]
-	evals = X_combined[1:N_states, 1:shift]
-	# state  = vcat(state,1)
-	for x in eachcol(X_combined)
-		@info size(state_xu)
-		state = solution*state_xu
-		delay_state = vec(states_xu[:, end-(shift-1):end])
-		state_xu = vcat(state, delay_state, x[N_states+1:end-1], 1)
-		
-
-		states_xu = [states_xu state_xu]
-		evals = [evals x[1:N_states]]
-		
-		@info state
-	end
-	states_sim = stack(states_xu)
-	states_eval =  stack(evals)
-	@info states_eval[1,size(X_combined,2)]
-	for i in 1:16
-		if i == 13
-			continue
-		end
-		ax = Axis(fig[(i-1)%4,(i-1) ÷ 4])
-		if n_moving == 0
-			l2 = lines!(1:size(X_combined,2), states_eval[i, 1:size(X_combined,2)])
-			l1 = lines!(1:size(X_combined,2), states_sim[i, 1:size(X_combined,2)])
-		Legend(fig[0,3], [l1,l2], ["Simulation             ", "Linear model"])
-			
-		else
-			l2 = lines!(
-				# 1:size(X_combined,2), 
-				rollmean(states_eval[i, 1:size(X_combined,2)], n_moving))
-			l1 = lines!(
-				# 1:size(X_combined,2), 
-				rollmean(states_sim[i, 1:size(X_combined,2)], n_moving))
-				Legend(fig[0,3], [l1,l2], ["Simulation             ", "Linear model"])
-			
-		end
-		
-	end
-	ax = Axis(fig[5,:])
-	
-	l2 = lines!(
-				# 1:size(X_combined,2), 
-				rollmean(states_eval[17, 1:size(X_combined,2)], 1))
-	l1 = lines!(
-				# 1:size(X_combined,2), 
-				rollmean(states_sim[17, 1:size(X_combined,2)], 1))
-			
-	Label(fig[4, 0:3], "Time [s]")
-	Label(fig[0:3, -1], "Temperature [°C]", rotation=pi/2)
-	Label(fig[-1, :], "Comparison of linear model and simulation data", fontsize=24, font="Arial", padding=(0, 0, 0, 0))
-	
-	save("fig.svg", fig)
-	@info "Final state is" states_xu[end]
-	fig
-end
-
-# ╔═╡ 8a2bd001-b371-439a-ba64-907deaee0769
-let
-	start = 10000
-	len = 50
-	eval_solution(X_combined[:, start:start+len], solution)
-end
-
-# ╔═╡ a2547bdd-3d27-4eea-a111-2d009d430da4
-X_combined
-
-# ╔═╡ a058051a-74fe-41de-b56d-7ed9f5f0f6eb
-let
-	fig = Figure()
-	ax = Axis(fig[1,1])
-	lines!(ax, 1:size(X_combined,2), X_combined[17,:])
-	fig
-end
-
-
-# ╔═╡ 3f2b487e-a659-46ff-b527-78db1bcbc422
-# ╠═╡ disabled = true
-#=╠═╡
-X_data =  jldopen("../../data/dataset-long.jld2")["dataset"][2]
-  ╠═╡ =#
-
-# ╔═╡ 83b5db7b-7157-4c48-9a90-ec3d6ef57939
-# ╠═╡ disabled = true
-#=╠═╡
-X = diagm(ones(2))
-  ╠═╡ =#
-
-# ╔═╡ c22bad70-80b1-4bc2-b699-9e982c1403d7
-# ╠═╡ disabled = true
-#=╠═╡
-U = ones(2,2q)
-  ╠═╡ =#
-
-# ╔═╡ 306a44fd-3a7a-4b3f-976b-f467393490f7
-A = X_next*pinv(X);
-
-# ╔═╡ 87e5ce14-f973-4089-a4ca-cf612a9703b9
-let
-	vals, vecs = eigen(A_sol[1:16, 1:16])
-	mat = zeros(4,4,16)
-	fig = Figure()
-	for k in 1:16
-		ax = Axis(fig[(k-1)÷4+1, k%4 + 1], title="$(round(vals[k],sigdigits=2))")
-		for i in 1:4
-			for j in 1:4
-				vec = vecs[:,k]
-				mat[:,:,k] = real.(reshape(vec,4,4))
-			end
-			heatmap!(ax, mat[:, :, k])
-		end
-	end
-	fig
-end;
-
-# ╔═╡ ba098a8f-7436-49b4-9601-194e97f73631
-y,_,x_lqr,u_lqr = let
-	A = zeros(18,18)
-	A[1:17, 1:17] = A_sol
-	B = [B_sol; zeros(1,size(B_sol,2))]
-	C = [ones(4)' zeros(13)']
-	Q = C' * C
-	R = I
-	L = lqr(Discrete, A_sol, B_sol, Q, R)
-	Ts=0.01
-
-	sys = ss(A_sol,B_sol,C,0,Ts)
-	
-	initial = solution[:, end]
-	u(x,t) = -L*x 
-	t = 0:Ts:10
-	y,t,x,uout = lsim(sys, u, t, x0=initial)
-end
-
-# ╔═╡ f2688a92-0b93-4487-88ce-304aae2f2ba4
-let
-	fig = Figure()
-	ax = Axis(fig[1,1])
-	for i in 1:4
-		lines!(ax, x_lqr[1, :])
-	end
-	ax = Axis(fig[2,1])
-	for i in 1:4
-		lines!(ax, u_lqr[1, :])
-	end
-	fig
-end
-
-# ╔═╡ 80831320-3d45-4232-bb1b-aeb1e0195c7b
-let
-	X_optimal = copy(X_combined)
-	X_optimal[18:33, :] .= vec(u_e*u_m')
-	start = 100
-	len = 700
-	eval_solution(X_optimal[:, start:start+len], solution, n_moving=50)
-end
-
-# ╔═╡ 3504815a-313c-4b07-8f15-0079c92331cd
-@bind startoff PlutoUI.Slider(1:10000)
-
-# ╔═╡ 75636f3a-54b2-4e72-8ae2-fcb9bdebe7e6
-let
-	fig = Figure(resolution=(800, 800), title="Comparison of linear model and simulation data")
-	start = 50000+startoff
-	len = 50000
-	idx = 1
-	X_combined = X_combined[:, start:start+len]
-	state = X_combined[:, 1]
-	states = [state]
-	evals = [state]
-	# state  = vcat(state,1)
-	for x in eachcol(X_combined)
-		# @info size(state)
-		state = solution*state
-		state = [state; x[18:33];1]
-		push!(states, state)
-		push!(evals, x)
-	end
-	states_sim = stack(states)
-	states_eval =  stack(evals)
-	ax = Axis(fig[1,1])
-	l2 = lines!(1:size(X_combined,2), states_eval[idx, 1:size(X_combined,2)])
-	l1 = lines!(1:size(X_combined,2), states_sim[idx, 1:size(X_combined,2)],linewidth=5)
-	
-	# Legend(fig[0,3], [l1,l2], ["Simulation             ", "Linear model"])
-	# Label(fig[-1, :], "Comparison of linear model and simulation data", fontsize=24, font="Arial", padding=(0, 0, 0, 0))
-	
-	save("T.svg", fig)
-	fig
-end
-
-# ╔═╡ 3d89abd4-ec13-47f0-a290-0e19c104eb63
-function solve_input(A, B, ref, C, S, iters=100, starts=10, max_inp=10)
-	# Expects u_el times v_mag
-	# B = diagm(C)*B
-	ref = C.*ref
-	best_in = zeros(8)
-	residuals = zeros(iters, starts)
-	best_residual = 99999999999999
-	for start in 1:starts
-		u = rand(4)
-		v = rand(4)
-		is_mag = false
-		res = []
-		for i in 1:iters
-			is_mag = !is_mag
-			if !is_mag
-				el_mat = sum([
-					v[1]*B[:, 1:4],
-					v[2]*B[:, 5:8],
-					v[3]*B[:, 9:12],
-					v[4]*B[:, 13:16],
-				])
-				
-				u = pinv(el_mat)*(ref - A*ref - S_sol)
-				u = clamp.(u,-max_inp, max_inp)
-			else
-				mag_mat = sum([
-					u[1]*B[:,[1,5,9,13]],
-					u[2]*B[:,[2,6,10,14]],
-					u[3]*B[:,[3,7,11,15]],
-					u[4]*B[:,[4,8,12,16]]
-				])
-				# v = mag_mat \ ref
-				v = pinv(mag_mat)*(ref - A*ref - S_sol)
-				
-				v = clamp.(v,-max_inp, max_inp)
-				
-			end
-			residuals[i, start] = norm(ref - inv(I - A)*(B*vec(best_in[1:4]*best_in[5:8]')+S))
-		end
-		fin_residual = norm(ref -inv(I - A)*(B*vec(best_in[1:4]*best_in[5:8]')+S))
-		if fin_residual < best_residual
-			best_in = [u; v;]
-			best_residual = fin_residual
-		end
-	end
-	return best_in, residuals, inv(I - A)*(B*vec(best_in[1:4]*best_in[5:8]')+S)
-end
-
-# ╔═╡ da1bb73f-1a17-4d1d-9eb4-a47514b1535f
-inp,res,final_r = let
-	ss = inv(I - A_sol)*(S_sol)
-	C = [1;0;0;0; zeros(13)]
-	r = ss
-	
-	
-	# C = [ones(16);0]
-	# r = [0;0;0;0; zeros(13)]
-	inp, res, final_r = solve_input(A_sol, B_sol, r, C, S_sol, 100, 50, 5);
-	inp,res,final_r
-end
-
-# ╔═╡ a886c61f-bc43-4d0f-a67f-e046e8a9e946
-minimum(res)
-
-# ╔═╡ 8abb11a0-890e-4344-b26e-7210bacba58b
-final_r
-
-# ╔═╡ 8ef70851-06be-4bc3-82ef-1a25c2140a6b
-
-
-# ╔═╡ 700a5d53-cc8b-4bac-a7c3-1fc64b5463f2
-let
-	X_optimal = copy(X_combined)
-	X_optimal[18:33, :] .= vec(inp[1:4]*inp[5:8]')
-	# X_optimal[18:33, :] .= vec(inp[5:8]*inp[1:4]')
-	
-	start = 100
-	len = 700
-	eval_solution(X_optimal[:, start:start+len], solution)
-end
-
-# ╔═╡ bb38a269-d5ca-4e70-9285-11cd0ff34f7e
-let
-	u = rand(4)
-	B = B_sol
-	ss = inv(I - A_sol)*(S_sol)
-	ref = ss
-	mag_mat = sum([
-		u[1]*B[:,[1,5,9,13]],
-		u[2]*B[:,[2,6,10,14]],
-		u[3]*B[:,[3,7,11,15]],
-		u[4]*B[:,[4,8,12,16]]
-	])
-	# v = mag_mat \ ref
-	v = pinv(mag_mat)*(ref - A*ref - S_sol)
-	v = zeros(4)
-	
-	best_in = [u;v]
-	inv(I - A)*(B*vec(best_in[1:4]*best_in[5:8]')+S_sol)
-	best_in[1:4]*best_in[5:8]'
-end
-
-# ╔═╡ 99dfdb21-51dc-4ff1-bdaa-57407eeeb81c
-diagm([1 zeros(16)']')*B_sol
-
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 ControlSystems = "a6e380b2-a6ca-5380-bf3e-84a91bcd477e"
-HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
 IterativeSolvers = "42fd0dbc-a981-5370-80f2-aaf504508153"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LowRankApprox = "898213cb-b102-5a47-900c-97e73b919f73"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RollingFunctions = "b0e4dd01-7b14-53d8-9b45-175a3e362653"
 SimplePlutoInclude = "6f00a2c5-ea4a-46bf-9183-91b7b57a087f"
@@ -565,10 +117,8 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 [compat]
 CairoMakie = "~0.13.2"
 ControlSystems = "~1.11.2"
-HiGHS = "~1.14.0"
 IterativeSolvers = "~0.9.4"
 JLD2 = "~0.5.11"
-JuMP = "~1.24.0"
 LowRankApprox = "~0.5.5"
 PlutoUI = "~0.7.23"
 Revise = "~3.7.2"
@@ -581,9 +131,9 @@ Statistics = "~1.11.1"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.4"
+julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "753b38274817b0557030d73473e6ebabfdd5c55a"
+project_hash = "397962b925d28813c271c5489a82f986d9c01f6b"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -644,9 +194,9 @@ version = "0.1.42"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra", "Requires"]
-git-tree-sha1 = "cd8b948862abee8f3d3e9b73a102a9ca924debb0"
+git-tree-sha1 = "f7817e2e585aa6d924fd714df1e2a84be7896c60"
 uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
-version = "4.2.0"
+version = "4.3.0"
 weakdeps = ["SparseArrays", "StaticArrays"]
 
     [deps.Adapt.extensions]
@@ -748,12 +298,6 @@ version = "0.4.7"
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
 
-[[deps.BenchmarkTools]]
-deps = ["Compat", "JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
-git-tree-sha1 = "e38fbc49a620f5d0b660d7f543db1009fe0f8336"
-uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-version = "1.6.0"
-
 [[deps.BitTwiddlingConvenienceFunctions]]
 deps = ["Static"]
 git-tree-sha1 = "f21cfd4950cb9f0587d5067e69405ad2acd27b87"
@@ -811,9 +355,9 @@ version = "0.13.2"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "009060c9a6168704143100f36ab08f06c2af4642"
+git-tree-sha1 = "2ac646d71d0d24b44f3f8c84da8c9f4d70fb67df"
 uuid = "83423d85-b0ee-5818-9007-b63ccbeb887a"
-version = "1.18.2+1"
+version = "1.18.4+0"
 
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra"]
@@ -836,18 +380,6 @@ deps = ["InteractiveUtils", "UUIDs"]
 git-tree-sha1 = "7eee164f122511d3e4e1ebadb7956939ea7e1c77"
 uuid = "da1fd8a2-8d9e-5ec2-8556-3022fb5608a2"
 version = "1.3.6"
-
-[[deps.CodecBzip2]]
-deps = ["Bzip2_jll", "TranscodingStreams"]
-git-tree-sha1 = "84990fa864b7f2b4901901ca12736e45ee79068c"
-uuid = "523fee87-0ab8-5b00-afb7-3ecf72e48cfd"
-version = "0.8.5"
-
-[[deps.CodecZlib]]
-deps = ["TranscodingStreams", "Zlib_jll"]
-git-tree-sha1 = "962834c22b66e32aa10f7611c08c8ca4e20749a9"
-uuid = "944b1d66-785c-5afd-91f1-9de20f533193"
-version = "0.7.8"
 
 [[deps.ColorBrewer]]
 deps = ["Colors", "JSON"]
@@ -982,9 +514,9 @@ version = "1.16.0"
 
 [[deps.DataStructures]]
 deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
-git-tree-sha1 = "1d0a14036acb104d9e89698bd408f63ab58cdc82"
+git-tree-sha1 = "4e1fe97fdaed23e9dc21d4d664bea76b65fc50a0"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.18.20"
+version = "0.18.22"
 
 [[deps.DataValueInterfaces]]
 git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
@@ -1117,9 +649,9 @@ version = "1.11.0"
 
 [[deps.Distributions]]
 deps = ["AliasTables", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SpecialFunctions", "Statistics", "StatsAPI", "StatsBase", "StatsFuns"]
-git-tree-sha1 = "03aa5d44647eaec98e1920635cdfed5d5560a8b9"
+git-tree-sha1 = "0b4190661e8a4e51a842070e7dd4fae440ddb7f4"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.25.117"
+version = "0.25.118"
 
     [deps.Distributions.extensions]
     DistributionsChainRulesCoreExt = "ChainRulesCore"
@@ -1473,18 +1005,6 @@ git-tree-sha1 = "55c53be97790242c29031e5cd45e8ac296dadda3"
 uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
 version = "8.5.0+0"
 
-[[deps.HiGHS]]
-deps = ["HiGHS_jll", "MathOptInterface", "PrecompileTools", "SparseArrays"]
-git-tree-sha1 = "0938730463f925e04a52c82335b78ff1209b29e8"
-uuid = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
-version = "1.14.0"
-
-[[deps.HiGHS_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Zlib_jll"]
-git-tree-sha1 = "26694f04567e584b054b9f33a810cec52adafa38"
-uuid = "8fd58aa0-07eb-5a78-9b36-339c94fd15ea"
-version = "1.9.0+0"
-
 [[deps.Hungarian]]
 deps = ["LinearAlgebra", "SparseArrays"]
 git-tree-sha1 = "4f84db415ccb0ea750b10738bfecdd55388fd1b6"
@@ -1493,9 +1013,9 @@ version = "0.7.0"
 
 [[deps.HypergeometricFunctions]]
 deps = ["LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
-git-tree-sha1 = "2bd56245074fab4015b9174f24ceba8293209053"
+git-tree-sha1 = "68c173f4f449de5b438ee67ed0c9c748dc31a2ec"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
-version = "0.3.27"
+version = "0.3.28"
 
 [[deps.Hyperscript]]
 deps = ["Test"]
@@ -1588,10 +1108,10 @@ weakdeps = ["Unitful"]
     InterpolationsUnitfulExt = "Unitful"
 
 [[deps.IntervalArithmetic]]
-deps = ["CRlibm_jll", "LinearAlgebra", "MacroTools", "RoundingEmulator"]
-git-tree-sha1 = "0fcf2079f918f68c6412cab5f2679822cbd7357f"
+deps = ["CRlibm_jll", "LinearAlgebra", "MacroTools", "OpenBLASConsistentFPCSR_jll", "RoundingEmulator"]
+git-tree-sha1 = "7b3603d3a5c52bcb18de8e46fa62e4176055f31e"
 uuid = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
-version = "0.22.23"
+version = "0.22.25"
 weakdeps = ["DiffRules", "ForwardDiff", "IntervalSets", "RecipesBase"]
 
     [deps.IntervalArithmetic.extensions]
@@ -1666,18 +1186,6 @@ git-tree-sha1 = "31e996f0a15c7b280ba9f76636b3ff9e2ae58c9a"
 uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 version = "0.21.4"
 
-[[deps.JSON3]]
-deps = ["Dates", "Mmap", "Parsers", "PrecompileTools", "StructTypes", "UUIDs"]
-git-tree-sha1 = "1d322381ef7b087548321d3f878cb4c9bd8f8f9b"
-uuid = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
-version = "1.14.1"
-
-    [deps.JSON3.extensions]
-    JSON3ArrowExt = ["ArrowTypes"]
-
-    [deps.JSON3.weakdeps]
-    ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
-
 [[deps.Jieko]]
 deps = ["ExproniconLite"]
 git-tree-sha1 = "2f05ed29618da60c06a87e9c033982d4f71d0b6c"
@@ -1686,27 +1194,15 @@ version = "0.2.1"
 
 [[deps.JpegTurbo]]
 deps = ["CEnum", "FileIO", "ImageCore", "JpegTurbo_jll", "TOML"]
-git-tree-sha1 = "fa6d0bcff8583bac20f1ffa708c3913ca605c611"
+git-tree-sha1 = "9496de8fb52c224a2e3f9ff403947674517317d9"
 uuid = "b835a17e-a41a-41e7-81f0-2f016b05efe0"
-version = "0.1.5"
+version = "0.1.6"
 
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "eac1206917768cb54957c65a615460d87b455fc1"
 uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
 version = "3.1.1+0"
-
-[[deps.JuMP]]
-deps = ["LinearAlgebra", "MacroTools", "MathOptInterface", "MutableArithmetics", "OrderedCollections", "PrecompileTools", "Printf", "SparseArrays"]
-git-tree-sha1 = "cf832644f225dbe721bb9b97bf432007765fc695"
-uuid = "4076af6c-e467-56ae-b986-b466b2749572"
-version = "1.24.0"
-
-    [deps.JuMP.extensions]
-    JuMPDimensionalDataExt = "DimensionalData"
-
-    [deps.JuMP.weakdeps]
-    DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"
 
 [[deps.JuliaInterpreter]]
 deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
@@ -2026,12 +1522,6 @@ deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 version = "1.11.0"
 
-[[deps.MathOptInterface]]
-deps = ["BenchmarkTools", "CodecBzip2", "CodecZlib", "DataStructures", "ForwardDiff", "JSON3", "LinearAlgebra", "MutableArithmetics", "NaNMath", "OrderedCollections", "PrecompileTools", "Printf", "SparseArrays", "SpecialFunctions", "Test"]
-git-tree-sha1 = "b691a4b4c8ef7a4fba051d546040bfd2ae6f0719"
-uuid = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
-version = "1.37.2"
-
 [[deps.MathTeXEngine]]
 deps = ["AbstractTrees", "Automa", "DataStructures", "FreeTypeAbstraction", "GeometryBasics", "LaTeXStrings", "REPL", "RelocatableFolders", "UnicodeFun"]
 git-tree-sha1 = "f45c8916e8385976e1ccd055c9874560c257ab13"
@@ -2095,12 +1585,6 @@ version = "2023.12.12"
 git-tree-sha1 = "cac9cc5499c25554cba55cd3c30543cff5ca4fab"
 uuid = "46d2c3a1-f734-5fdb-9937-b9b9aeba4221"
 version = "0.2.4"
-
-[[deps.MutableArithmetics]]
-deps = ["LinearAlgebra", "SparseArrays", "Test"]
-git-tree-sha1 = "491bdcdc943fcbc4c005900d7463c9f216aabf4c"
-uuid = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
-version = "1.6.4"
 
 [[deps.NLSolversBase]]
 deps = ["DiffResults", "Distributed", "FiniteDiff", "ForwardDiff"]
@@ -2217,9 +1701,9 @@ uuid = "510215fc-4207-5dde-b226-833fc4488ee2"
 version = "0.5.5"
 
 [[deps.OffsetArrays]]
-git-tree-sha1 = "5e1897147d1ff8d98883cda2be2187dcf57d8f0c"
+git-tree-sha1 = "a414039192a155fb38c4599a60110f0018c6ec82"
 uuid = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
-version = "1.15.0"
+version = "1.16.0"
 weakdeps = ["Adapt"]
 
     [deps.OffsetArrays.extensions]
@@ -2230,6 +1714,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "887579a3eb005446d514ab7aeac5d1d027658b8f"
 uuid = "e7412a2a-1a6e-54c0-be00-318e2571c051"
 version = "1.3.5+1"
+
+[[deps.OpenBLASConsistentFPCSR_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "567515ca155d0020a45b05175449b499c63e7015"
+uuid = "6cdc7f73-28fd-5e50-80fb-958a8875b1af"
+version = "0.3.29+0"
 
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
@@ -2251,7 +1741,7 @@ version = "3.2.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+4"
+version = "0.8.1+2"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -2521,9 +2011,9 @@ version = "2.8.1"
 
 [[deps.Pixman_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LLVMOpenMP_jll", "Libdl"]
-git-tree-sha1 = "35621f10a7531bc8fa58f74610b1bfb70a3cfc6b"
+git-tree-sha1 = "db76b1ecd5e9715f3d043cec13b2ec93ce015d53"
 uuid = "30392449-352a-5448-841d-b1acce4e97dc"
-version = "0.43.4+0"
+version = "0.44.2+0"
 
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
@@ -2574,13 +2064,18 @@ deps = ["LinearAlgebra", "OrderedCollections", "RecipesBase", "Requires", "Setfi
 git-tree-sha1 = "555c272d20fc80a2658587fb9bbda60067b93b7c"
 uuid = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
 version = "4.0.19"
-weakdeps = ["ChainRulesCore", "FFTW", "MakieCore", "MutableArithmetics"]
 
     [deps.Polynomials.extensions]
     PolynomialsChainRulesCoreExt = "ChainRulesCore"
     PolynomialsFFTWExt = "FFTW"
     PolynomialsMakieCoreExt = "MakieCore"
     PolynomialsMutableArithmeticsExt = "MutableArithmetics"
+
+    [deps.Polynomials.weakdeps]
+    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+    FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
+    MakieCore = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
+    MutableArithmetics = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
 
 [[deps.PreallocationTools]]
 deps = ["Adapt", "ArrayInterface", "ForwardDiff"]
@@ -2611,10 +2106,6 @@ version = "1.4.3"
 [[deps.Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
-version = "1.11.0"
-
-[[deps.Profile]]
-uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.ProgressMeter]]
@@ -2975,9 +2466,9 @@ version = "0.1.1"
 
 [[deps.Static]]
 deps = ["CommonWorldInvalidations", "IfElse", "PrecompileTools"]
-git-tree-sha1 = "87d51a3ee9a4b0d2fe054bdd3fc2436258db2603"
+git-tree-sha1 = "f737d444cb0ad07e61b3c1bef8eb91203c321eff"
 uuid = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
-version = "1.1.1"
+version = "1.2.0"
 
 [[deps.StaticArrayInterface]]
 deps = ["ArrayInterface", "Compat", "IfElse", "LinearAlgebra", "PrecompileTools", "Static"]
@@ -3065,12 +2556,6 @@ version = "0.7.0"
     LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
     StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-
-[[deps.StructTypes]]
-deps = ["Dates", "UUIDs"]
-git-tree-sha1 = "159331b30e94d7b11379037feeb9b690950cace8"
-uuid = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
-version = "1.11.0"
 
 [[deps.StyledStrings]]
 uuid = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
@@ -3378,53 +2863,14 @@ version = "3.6.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═abbfee84-0188-11f0-0a28-679196b7d942
-# ╠═1c11a287-4d02-4f9a-a091-b5cd3ea8174e
-# ╠═3474d2bc-982c-430d-a656-8a9a6f211597
-# ╠═e5fcce4f-25a2-487b-a7f5-f8e18d36e8f9
-# ╠═8ec3a9df-c25a-4817-b838-8746182346e9
-# ╠═1af1a5b1-f9fe-4ea9-90b3-d4988eb01606
-# ╠═bbf84e47-3ad5-4f6c-874d-67ae168d007e
-# ╠═9bb505a2-63f4-4797-8310-99ce24de8c70
-# ╠═c9ae8e90-de39-40a8-87b7-f7ce896c3d67
-# ╠═80caaf05-380c-4b5a-b5ac-fc1c3ac96a94
-# ╠═03087046-3908-4d4b-add0-d672d0548aeb
-# ╠═e6e88899-cd4c-4922-a53b-eda8b88ec030
-# ╠═a9e3bf47-e034-4e79-937a-52fd15d55685
-# ╠═e4d1e00a-0001-473f-b79d-fc96a3642a4c
-# ╠═9b35d8b8-bc89-4921-8e09-67e3c9c18213
-# ╠═30bd179e-7042-45ca-b82b-4ed25fd9ea6d
-# ╠═84a20361-e435-426d-b3b2-aa4313a097b9
-# ╠═d25e1020-036e-4357-9fee-938e916f0098
-# ╠═5d864b89-5b85-473d-b069-de56eb35b818
-# ╠═5cb8ee92-4a70-47c2-afd4-fa8291d7c83e
-# ╠═22f279eb-22ed-4d15-a26b-a02e4f619f84
-# ╟─a46a786e-f154-4aa6-9c54-2ee7751654fd
-# ╠═50cdc015-09f8-497a-9303-dc8a48b836f9
-# ╠═a1028443-272f-43a1-925a-afd1662bed5f
-# ╠═9584aa87-d692-4c29-967e-ca3fbd337da7
-# ╠═8a2bd001-b371-439a-ba64-907deaee0769
-# ╠═a2547bdd-3d27-4eea-a111-2d009d430da4
-# ╠═a058051a-74fe-41de-b56d-7ed9f5f0f6eb
-# ╠═3f2b487e-a659-46ff-b527-78db1bcbc422
-# ╠═83b5db7b-7157-4c48-9a90-ec3d6ef57939
-# ╠═c22bad70-80b1-4bc2-b699-9e982c1403d7
-# ╠═306a44fd-3a7a-4b3f-976b-f467393490f7
-# ╠═87e5ce14-f973-4089-a4ca-cf612a9703b9
-# ╠═ba098a8f-7436-49b4-9601-194e97f73631
-# ╠═f2688a92-0b93-4487-88ce-304aae2f2ba4
-# ╠═c32bad11-574c-4182-9288-caa79b36e395
-# ╠═80831320-3d45-4232-bb1b-aeb1e0195c7b
-# ╠═862e5d81-2656-4375-8487-d10d97e5aece
-# ╠═3504815a-313c-4b07-8f15-0079c92331cd
-# ╠═75636f3a-54b2-4e72-8ae2-fcb9bdebe7e6
-# ╠═3d89abd4-ec13-47f0-a290-0e19c104eb63
-# ╠═da1bb73f-1a17-4d1d-9eb4-a47514b1535f
-# ╠═a886c61f-bc43-4d0f-a67f-e046e8a9e946
-# ╠═8abb11a0-890e-4344-b26e-7210bacba58b
-# ╠═8ef70851-06be-4bc3-82ef-1a25c2140a6b
-# ╠═700a5d53-cc8b-4bac-a7c3-1fc64b5463f2
-# ╠═bb38a269-d5ca-4e70-9285-11cd0ff34f7e
-# ╠═99dfdb21-51dc-4ff1-bdaa-57407eeeb81c
+# ╠═bdfd3f28-2b8c-4736-860a-d8a93575e2cf
+# ╠═8904c6ba-100d-11f0-1cae-dd7cfe78e1a5
+# ╠═f4f07dd0-b0e1-4f24-b007-b63380fe1a4a
+# ╠═707ece4b-9ea5-4a43-b68d-bf07e9cb1017
+# ╠═c56b3e21-bf26-4302-bbca-62172108509f
+# ╠═38cc6b4c-473e-433f-98f6-d1fd4c1bfad4
+# ╠═7b519009-60f9-420b-8bb7-6cad980035c1
+# ╠═0c5c165a-f7ef-454c-b283-bf937b6381b3
+# ╠═dd65216a-003c-4de9-8f3b-19172a4b971d
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

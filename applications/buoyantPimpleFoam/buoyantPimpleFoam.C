@@ -57,6 +57,7 @@ Description
 
 #include "comms.H"
 
+
 int main(int argc, char *argv[])
 {
     argList::addNote
@@ -80,6 +81,18 @@ int main(int argc, char *argv[])
 
     turbulence->validate();
 
+    if (hotEndPatchID < 0)
+    {
+        FatalErrorInFunction
+            << "Cannot find patch named 'hotEnd' in the mesh boundary." << nl
+            << "Please check boundary file and patch name."
+            << exit(FatalError);
+    }
+    else
+    {
+        Info << "Found patch 'hotEnd' with ID: " << hotEndPatchID << endl;
+    }
+
     if (!LTS)
     {
         #include "compressibleCourantNo.H"
@@ -89,6 +102,9 @@ int main(int argc, char *argv[])
     // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
     Info<< "\nStarting time loop\n" << endl;
+
+    Info << "Creating field gradT for auto-write\n" << endl;
+
 
     float last_control_time = 0;
     float control_delay_s = 5;
@@ -201,13 +217,7 @@ int main(int argc, char *argv[])
 
         rho = thermo.rho();
 
-        volVectorField gradT = fvc::grad(thermo.T());
-        gradT.write();
-
-        runTime.write();
-
-        runTime.printExecutionTime(Info);
-    }
+         gradT = fvc::grad(thermo.T());
 
     Info<< "End\n" << endl;
 
