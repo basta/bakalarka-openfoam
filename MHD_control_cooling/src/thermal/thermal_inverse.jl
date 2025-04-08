@@ -50,9 +50,9 @@ Uses central differences (adjusting at boundaries). Assumes dx and dy are scalar
 function build_divergence_matrix(N, M, dx, dy)
     num_cells = N * M
     num_vars = 2 * num_cells
-    I = Int[]
-    J = Int[]
-    V = Float64[]
+    I_vec = Int[] # Renamed to avoid conflict with LinearAlgebra.I
+    J_vec = Int[] # Renamed to avoid conflict
+    V_vec = Float64[] # Renamed to avoid conflict
     cell_to_row(i, j) = (j-1)*N + i # Map cell (i,j) to a unique row index k
 
     for j in 1:M # Iterate column-wise
@@ -63,38 +63,38 @@ function build_divergence_matrix(N, M, dx, dy)
             idx_ux_curr = ij_to_idx(i, j, N, M, :x)
             if i == 1 # Forward difference at left boundary (i=1)
                  idx_ux_right = ij_to_idx(i+1, j, N, M, :x)
-                 push!(I, k); push!(J, idx_ux_curr);  push!(V, -1.0 / dx)
-                 push!(I, k); push!(J, idx_ux_right); push!(V,  1.0 / dx)
+                 push!(I_vec, k); push!(J_vec, idx_ux_curr);  push!(V_vec, -1.0 / dx)
+                 push!(I_vec, k); push!(J_vec, idx_ux_right); push!(V_vec,  1.0 / dx)
             elseif i == N # Backward difference at right boundary (i=N)
                  idx_ux_left = ij_to_idx(i-1, j, N, M, :x)
-                 push!(I, k); push!(J, idx_ux_left); push!(V, -1.0 / dx)
-                 push!(I, k); push!(J, idx_ux_curr); push!(V,  1.0 / dx)
+                 push!(I_vec, k); push!(J_vec, idx_ux_left); push!(V_vec, -1.0 / dx)
+                 push!(I_vec, k); push!(J_vec, idx_ux_curr); push!(V_vec,  1.0 / dx)
             else # Central difference in interior
                  idx_ux_left = ij_to_idx(i-1, j, N, M, :x)
                  idx_ux_right = ij_to_idx(i+1, j, N, M, :x)
-                 push!(I, k); push!(J, idx_ux_left);  push!(V, -0.5 / dx)
-                 push!(I, k); push!(J, idx_ux_right); push!(V,  0.5 / dx)
+                 push!(I_vec, k); push!(J_vec, idx_ux_left);  push!(V_vec, -0.5 / dx)
+                 push!(I_vec, k); push!(J_vec, idx_ux_right); push!(V_vec,  0.5 / dx)
             end
 
             # dv/dy part
             idx_uy_curr = ij_to_idx(i, j, N, M, :y)
             if j == 1 # Forward difference at bottom boundary (j=1)
                 idx_uy_up = ij_to_idx(i, j+1, N, M, :y)
-                push!(I, k); push!(J, idx_uy_curr); push!(V, -1.0 / dy)
-                push!(I, k); push!(J, idx_uy_up);   push!(V,  1.0 / dy)
+                push!(I_vec, k); push!(J_vec, idx_uy_curr); push!(V_vec, -1.0 / dy)
+                push!(I_vec, k); push!(J_vec, idx_uy_up);   push!(V_vec,  1.0 / dy)
             elseif j == M # Backward difference at top boundary (j=M)
                  idx_uy_down = ij_to_idx(i, j-1, N, M, :y)
-                 push!(I, k); push!(J, idx_uy_down); push!(V, -1.0 / dy)
-                 push!(I, k); push!(J, idx_uy_curr); push!(V,  1.0 / dy)
+                 push!(I_vec, k); push!(J_vec, idx_uy_down); push!(V_vec, -1.0 / dy)
+                 push!(I_vec, k); push!(J_vec, idx_uy_curr); push!(V_vec,  1.0 / dy)
             else # Central difference in interior
                  idx_uy_down = ij_to_idx(i, j-1, N, M, :y)
                  idx_uy_up   = ij_to_idx(i, j+1, N, M, :y)
-                 push!(I, k); push!(J, idx_uy_down); push!(V, -0.5 / dy)
-                 push!(I, k); push!(J, idx_uy_up);   push!(V,  0.5 / dy)
+                 push!(I_vec, k); push!(J_vec, idx_uy_down); push!(V_vec, -0.5 / dy)
+                 push!(I_vec, k); push!(J_vec, idx_uy_up);   push!(V_vec,  0.5 / dy)
             end
         end
     end
-    return sparse(I, J, V, num_cells, num_vars)
+    return sparse(I_vec, J_vec, V_vec, num_cells, num_vars)
 end
 
 """
@@ -106,20 +106,20 @@ Assumes u=0 on i=1, i=N boundaries and v=0 on j=1, j=M boundaries.
 function build_boundary_mat_u(N, M)
     num_vars = 2 * N * M
     num_bc_eqs = 2 * N + 2 * M # u=0 on top/bottom (2M), v=0 on left/right (2N)
-    I = Int[]
-    J = Int[]
-    V = Float64[]
+    I_vec = Int[] # Renamed
+    J_vec = Int[] # Renamed
+    V_vec = Float64[] # Renamed
     eq_idx = 1 # Equation index
 
     # Enforce v = 0 on left (j=1) and right (j=M) walls
     for i in 1:N
         # Left wall (j=1)
         idx_v_left = ij_to_idx(i, 1, N, M, :y)
-        push!(I, eq_idx); push!(J, idx_v_left); push!(V, 1.0)
+        push!(I_vec, eq_idx); push!(J_vec, idx_v_left); push!(V_vec, 1.0)
         eq_idx += 1
         # Right wall (j=M)
         idx_v_right = ij_to_idx(i, M, N, M, :y)
-        push!(I, eq_idx); push!(J, idx_v_right); push!(V, 1.0)
+        push!(I_vec, eq_idx); push!(J_vec, idx_v_right); push!(V_vec, 1.0)
         eq_idx += 1
     end
 
@@ -127,16 +127,16 @@ function build_boundary_mat_u(N, M)
     for j in 1:M
          # Bottom wall (i=1)
         idx_u_bottom = ij_to_idx(1, j, N, M, :x)
-        push!(I, eq_idx); push!(J, idx_u_bottom); push!(V, 1.0)
+        push!(I_vec, eq_idx); push!(J_vec, idx_u_bottom); push!(V_vec, 1.0)
         eq_idx += 1
         # Top wall (i=N)
         idx_u_top = ij_to_idx(N, j, N, M, :x)
-        push!(I, eq_idx); push!(J, idx_u_top); push!(V, 1.0)
+        push!(I_vec, eq_idx); push!(J_vec, idx_u_top); push!(V_vec, 1.0)
         eq_idx += 1
     end
 
     @assert eq_idx - 1 == num_bc_eqs "Mismatch in number of boundary condition equations"
-    return sparse(I, J, V, num_bc_eqs, num_vars)
+    return sparse(I_vec, J_vec, V_vec, num_bc_eqs, num_vars)
 end
 
 
@@ -195,8 +195,8 @@ function calculate_velocity_from_temperature(
 
     # Define differential operators
     ▽ = Del((dx_f, dy_f)) # Gradient operator
-    Δ² = Lap((dx_f, dy_f); pad = :replicate, border = :smooth) # Laplacian operator
-
+    Δ² = Lap((dx, dy); pad = :same, border = :smooth)
+    
     # 1. Calculate Laplacian and Gradient of the Temperature Field
     T_lap = real(Δ²(T_field))
     T_grad = real(▽(T_field)) # Array of 2-element vectors [∂T/∂x, ∂T/∂y]
@@ -231,7 +231,13 @@ function calculate_velocity_from_temperature(
 
     # 4. Regularize and Solve the Linear System
     b_augmented = [b; zeros(size(ico_mat, 1) + size(bound_mat, 1))] # Pad b for constraint eqns
-    A_reg = vcat(A, λ * sparse(I, 1.0:num_vars, 1.0, num_vars, num_vars)) # Add regularization term (using sparse I)
+
+    # --- Corrected Regularization Term ---
+    # Create a sparse identity matrix of size num_vars x num_vars and scale by λ
+    regularization_term = λ * sparse(I, num_vars, num_vars)
+    A_reg = vcat(A, regularization_term) # Add regularization term rows
+    # ------------------------------------
+
     b_reg = [b_augmented; zeros(num_vars)] # Pad b for regularization rows
 
     # Solve the regularized linear system A_reg * u = b_reg

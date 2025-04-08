@@ -192,7 +192,7 @@ x(k+1) = A0*x(k) + A1*x(k-N) + ... + Ashift*x(k-shift*N) + B*u(k) + c.
 Returns a tuple: (prediction_function, initialization_length).
 Initialization length is `shift * N`.
 """
-function create_delay_step_linmodel(X_data, U_data, shift::Int, N::Int; pinv_method=solve_explicit)
+function create_delay_step_linmodel(X_data, U_data, shift::Int, N::Int; pinv_method=solve_fastdmd)
     @assert size(X_data, 2) == size(U_data, 2) "X_data and U_data must have the same number of columns (time steps)."
     @assert shift >= 0 "Shift must be non-negative."
     @assert N >= 1 "Step N must be >= 1."
@@ -444,7 +444,7 @@ function create_delay_step_linmodel_pod(X_data, U_data, shift::Int, N::Int, n_mo
     end
 end
 
-function create_delay_step_linmodel_pod_first(X_data, U_data, shift::Int, N::Int, n_modes::Int; pinv_method=solve_explicit)
+function create_delay_step_linmodel_pod_first(X_data, U_data, shift::Int, N::Int, n_modes::Int; pinv_method=solve_fastdmd)
     @assert size(X_data, 2) == size(U_data, 2) "X_data and U_data must have the same number of columns (time steps)."
     @assert shift >= 0 "Shift must be non-negative."
     @assert N >= 1 "Step N must be >= 1."
@@ -601,170 +601,186 @@ function create_delay_step_linmodel_pod_first(X_data, U_data, shift::Int, N::Int
 end
 
 
-function create_delay_step_linmodel_with_inputs(X_data, U_data, shift::Int, N::Int; pinv_method=pinv)
-    # --- Input Validation ---
+function create_delay_step_linmodel_pod_first_with_input_delay(
+    X_data, U_data, shift::Int, N::Int, n_modes::Int; 
+    pinv_method=solve_fastdmd, skip_pod=false
+    )
     @assert size(X_data, 2) == size(U_data, 2) "X_data and U_data must have the same number of columns (time steps)."
     @assert shift >= 0 "Shift must be non-negative."
     @assert N >= 1 "Step N must be >= 1."
 
     T = size(X_data, 2)
-    n_x = size(X_data, 1)
+    original_n_x = size(X_data, 1)
     n_u = size(U_data, 1)
 
-    # Maximum delay needed in the history (applies to both X and U)
-    # e.g., if shift=2, N=3, need x(k-6) and u(k-6)
-    max_delay = shift * N
+    # --- Apply POD only to the state data ---
+    if skip_pod
+        modes = I
+        coordinates = X_data[:,:]
+        mean_vec = mean(X_data, dims=2)
+        coordinates .-= mean_vec
+        @info "Skipping POD. Using identity matrix for modes."
+    else
+        modes, s, coordinates, _, mean_vec = pod_pca(X_data, center=true, num_modes=n_modes)
+        @info "POD complete for state data. Singular values:" s
 
-    # Check if enough data points are available
-    # Need data up to x(k), u(k) and x(k-max_delay), u(k-max_delay) to predict x(k+1)
+    end
+    n_x_coords = n_modes # Dimension of the POD coordinate space
+
+    # --- Setup for Delay Embedding ---
+    max_delay = shift * N # Maximum delay needed in history for both state and input
+
     min_data_points = max_delay + 2
     if T < min_data_points
-        error("Not enough data points (T = $T) for the given shift (shift = $shift) and step (N = $N). Need T >= $(min_data_points).")
+        error("Not enough data points (T = $T) for shift=$shift, N=$N. Need T >= $min_data_points.")
     end
 
-    # Number of training examples we can form
-    num_cols = T - 1 - max_delay # k runs from (1+max_delay) to (T-1)
+    num_cols = T - 1 - max_delay # Number of training examples
 
-    # --- Build Delayed State Matrix ---
-    # Matrix of stacked selected delayed states [X(k); X(k-N); ...; X(k-shift*N)]
-    # Size: (n_x * (shift+1)) x num_cols
-    X_delayed_stacked = zeros(n_x * (shift + 1), num_cols)
-    for i in 0:shift # i=0 is X(k), i=1 is X(k-N), ..., i=shift is X(k-shift*N)
+    # --- Build Delayed Coordinate Matrix ---
+    # Stacked delayed POD coordinates [z(k); z(k-N); ...; z(k-shift*N)]
+    X_stepped_coords_data = zeros(n_x_coords * (shift + 1), num_cols)
+    @info "Constructing delay matrix for POD coordinates (delay $shift, N $N)"
+    for i in 0:shift
         current_delay = i * N
-        row_start = 1 + i * n_x
-        row_end = (i + 1) * n_x
-
-        # Time indices for X(k - current_delay): k runs from (1+max_delay) to (T-1)
-        # So, (k - current_delay) runs from (1+max_delay-current_delay) to (T-1-current_delay)
+        row_start = 1 + i * n_x_coords
+        row_end = (i + 1) * n_x_coords
         start_idx = 1 + max_delay - current_delay
         end_idx = T - 1 - current_delay
-
-        X_delayed_stacked[row_start:row_end, :] = X_data[:, start_idx:end_idx]
+        X_stepped_coords_data[row_start:row_end, :] = coordinates[:, start_idx:end_idx]
     end
 
     # --- Build Delayed Input Matrix ---
-    # Matrix of stacked selected delayed inputs [U(k); U(k-N); ...; U(k-shift*N)]
-    # Size: (n_u * (shift+1)) x num_cols
-    U_delayed_stacked = zeros(n_u * (shift + 1), num_cols)
-     for i in 0:shift # i=0 is U(k), i=1 is U(k-N), ..., i=shift is U(k-shift*N)
+    # Stacked delayed inputs [u(k); u(k-N); ...; u(k-shift*N)]
+    U_stepped_data = zeros(n_u * (shift + 1), num_cols)
+    @info "Constructing delay matrix for inputs (delay $shift, N $N)"
+     for i in 0:shift
         current_delay = i * N
         row_start = 1 + i * n_u
         row_end = (i + 1) * n_u
-
-        # Time indices for U(k - current_delay): k runs from (1+max_delay) to (T-1)
-        # So, (k - current_delay) runs from (1+max_delay-current_delay) to (T-1-current_delay)
         start_idx = 1 + max_delay - current_delay
         end_idx = T - 1 - current_delay
-
-        U_delayed_stacked[row_start:row_end, :] = U_data[:, start_idx:end_idx]
+        U_stepped_data[row_start:row_end, :] = U_data[:, start_idx:end_idx]
     end
 
-    # --- Target States ---
-    # Target states X(k+1)
-    # k runs from (1+max_delay) to (T-1), so k+1 runs from (2+max_delay) to T
-    X_next = X_data[:, (2+max_delay):end]
+    # --- Target Coordinates ---
+    # Target POD coordinates z(k+1)
+    X_next_coords = coordinates[:, (2+max_delay):end]
 
     # --- Combined Input Matrix for Regression ---
-    # [X_delayed_stacked; U_delayed_stacked; 1]  
-    combined_input = [X_delayed_stacked; U_delayed_stacked; ones(1, num_cols)]
+    # [Delayed Coordinates; Delayed Inputs; Bias Term]
+    combined_input = [X_stepped_coords_data; U_stepped_data; ones(1, num_cols)]
 
     try
-        # --- Solve Linear System ---
-        # solution * combined_input ≈ X_next
-        # solution = X_next * pinv(combined_input)
-        @info "
-            Calculating pseudoinverse for linear model with state size $(size(combined_input, 1))
-            X dimension:$(size(X_delayed_stacked, 1)) U dimension: $(size(U_delayed_stacked, 1))       
-        "
-        solution = pinv_method(combined_input, X_next) # More stable way in Julia (uses QR or SVD)
+        # --- Solve Linear System for Coordinate Dynamics ---
+        @info """
+        Calculating pseudoinverse for linear model in coordinate space.
+        Input matrix size: $(size(combined_input))
+        Target coordinate matrix size: $(size(X_next_coords))
+        Coordinate dimension (n_modes): $n_x_coords
+        Input dimension (n_u): $n_u
+        Number of delay terms per variable (shift+1): $(shift+1)
+        """
+        solution = pinv_method(combined_input, X_next_coords) # Predicts next coordinates
         @info "Pseudoinverse calculation complete."
 
-        # --- Evaluate Training Fit ---
-        X_pred = solution * combined_input
-        Residuals = X_next - X_pred
-        MSE = mean(Residuals.^2)
-        RMSE = sqrt(MSE)
-        RMSE_per_state = sqrt.(mean(Residuals.^2, dims=2))
-        @info "Training RMSE: $RMSE"
-        @debug "Training RMSE per state: $(vec(RMSE_per_state))"
+        # --- Evaluate Training Fit (optional, in original high-dimensional space) ---
+        X_pred_coords = solution * combined_input
+        X_pred_full = modes * X_pred_coords .+ mean_vec
+        X_next_full = X_data[:, (2+max_delay):end]
+        Residuals = X_next_full - X_pred_full
+        RMSE = sqrt(mean(Residuals.^2))
+        @info "Training RMSE (evaluated in original space): $RMSE"
 
         # --- Define the Prediction Function (Closure) ---
-        model_fn = (x_curr::Vector{Float64}, u_curr::Vector{Float64}, recur::Dict) -> begin
-           # Initialize full history buffers if first call or if history is missing/wrong size.
-           # State History: Stores [x(k-1) x(k-2) ... x(k-max_delay)] (Size: n_x x max_delay)
-           if !haskey(recur, "delay_vecs_x") || size(recur["delay_vecs_x"], 2) != max_delay
-              recur["delay_vecs_x"] = repeat(x_curr, 1, max_delay)
-              @debug "Initialized state history buffer (size: $(size(recur["delay_vecs_x"])))"
-           end
-           # Input History: Stores [u(k-1) u(k-2) ... u(k-max_delay)] (Size: n_u x max_delay)
-            if !haskey(recur, "delay_vecs_u") || size(recur["delay_vecs_u"], 2) != max_delay
-              recur["delay_vecs_u"] = repeat(u_curr, 1, max_delay)
-              @debug "Initialized input history buffer (size: $(size(recur["delay_vecs_u"])))"
-           end
+        model_fn = (x_high_dim::Vector{Float64}, u::Vector{Float64}, recur::Dict) -> begin
+            # Project current high-dimensional state to POD coordinates
+            x_coords = modes' * (reshape(x_high_dim, :, 1) .- mean_vec)
+            x_coords = vec(x_coords) # Ensure it's a vector
 
-           # --- Extract Delayed States ---
-           # Select x(k-N), x(k-2N), ..., x(k-shift*N) from history
-           selected_state_delays = if max_delay > 0 && shift > 0 && N > 0
-               indices = N:N:min(max_delay, size(recur["delay_vecs_x"], 2))
-               isempty(indices) ? zeros(n_x, 0) : recur["delay_vecs_x"][:, indices]
-           else
-               zeros(n_x, 0) # Empty matrix if no state delays needed
-           end
-           delayed_states_vec = vec(selected_state_delays) # Flatten
+            # Initialize history buffers if first call or wrong size
+            # State coordinate history: [z(k-1) z(k-2) ... z(k-max_delay)]
+            if !haskey(recur, "delay_coords_vecs") || size(recur["delay_coords_vecs"]) != (n_x_coords, max_delay)
+                recur["delay_coords_vecs"] = repeat(x_coords, 1, max_delay)
+                @debug "Initialized delay_coords_vecs history (size: $(size(recur["delay_coords_vecs"])))"
+            end
+            # Input history: [u(k-1) u(k-2) ... u(k-max_delay)]
+             if !haskey(recur, "delay_u_vecs") || size(recur["delay_u_vecs"]) != (n_u, max_delay)
+                recur["delay_u_vecs"] = repeat(reshape(u,:,1), 1, max_delay) # Use current u for init
+                @debug "Initialized delay_u_vecs history (size: $(size(recur["delay_u_vecs"])))"
+            end
 
-           # --- Extract Delayed Inputs ---
-           # Select u(k-N), u(k-2N), ..., u(k-shift*N) from history
-           selected_input_delays = if max_delay > 0 && shift > 0 && N > 0
-               indices = N:N:min(max_delay, size(recur["delay_vecs_u"], 2))
-               isempty(indices) ? zeros(n_u, 0) : recur["delay_vecs_u"][:, indices]
-           else
-               zeros(n_u, 0) # Empty matrix if no input delays needed
-           end
-           delayed_inputs_vec = vec(selected_input_delays) # Flatten
+            # Select necessary delayed states (coordinates) and inputs from history
+            delay_indices = N:N:min(max_delay, size(recur["delay_coords_vecs"], 2)) # Same indices for both
 
-           # --- Construct Feature Vector ---
-           # [x(k); x(k-N); ...; x(k-shift*N); u(k); u(k-N); ...; u(k-shift*N); 1]
-           # Note: The stacked matrices used for training already include x(k) and u(k)
-           # The feature vector here corresponds to one column of `combined_input`
-           feature_vec = [
-               x_curr;              # x(k)
-               delayed_states_vec;  # x(k-N), ..., x(k-shift*N)
-               u_curr;              # u(k)
-               delayed_inputs_vec;  # u(k-N), ..., u(k-shift*N)
-               1.0                  # Bias term
-           ]
+            selected_delay_coords = if max_delay > 0 && shift > 0 && N > 0 && !isempty(delay_indices)
+                 recur["delay_coords_vecs"][:, delay_indices]
+            else
+                zeros(n_x_coords, 0)
+            end
 
-           # --- Predict Next State ---
-           x_next_pred = solution * feature_vec
+            selected_delay_u = if max_delay > 0 && shift > 0 && N > 0 && !isempty(delay_indices)
+                 recur["delay_u_vecs"][:, delay_indices]
+            else
+                zeros(n_u, 0)
+            end
 
-           # --- Update History Buffers for the *Next* Time Step ---
-           if max_delay > 0
-              # Update State History
-              hist_x = recur["delay_vecs_x"]
-              if size(hist_x, 2) > 1; hist_x[:, 2:end] = hist_x[:, 1:end-1]; end
-              if size(hist_x, 2) >= 1; hist_x[:, 1] = x_curr; end # x(k) becomes x(k-1) next time
-              recur["delay_vecs_x"] = hist_x
+            # Flatten selected delayed variables
+            delay_history_coords_vec = vec(selected_delay_coords)
+            delay_history_u_vec = vec(selected_delay_u)
 
-              # Update Input History
-              hist_u = recur["delay_vecs_u"]
-              if size(hist_u, 2) > 1; hist_u[:, 2:end] = hist_u[:, 1:end-1]; end
-              if size(hist_u, 2) >= 1; hist_u[:, 1] = u_curr; end # u(k) becomes u(k-1) next time
-              recur["delay_vecs_u"] = hist_u
-           end
+            # Construct feature vector for coordinate prediction
+            # [z(k); z(k-N); ...; z(k-shift*N); u(k); u(k-N); ...; u(k-shift*N); 1]
+            feature_vec = [
+                x_coords;                 # Current coordinates z(k)
+                delay_history_coords_vec; # Delayed coordinates z(k-N)...
+                u;                        # Current input u(k)
+                delay_history_u_vec;      # Delayed inputs u(k-N)...
+                1.0                       # Bias term
+            ]
 
-           return x_next_pred, recur # Return prediction and updated history dictionary
+            # Predict *next coordinates*
+            next_coords_pred = solution * feature_vec
+
+            # --- Inverse Transform: Map predicted coordinates back to high-dimensional space ---
+            next_state_high_dim = modes * next_coords_pred .+ vec(mean_vec)
+
+            # --- Update History Buffers (with current state coordinates and input) ---
+            if max_delay > 0
+                # Update state coordinate history
+                history_coords = recur["delay_coords_vecs"]
+                if size(history_coords, 2) > 1
+                    history_coords[:, 2:end] = history_coords[:, 1:end-1]
+                end
+                if size(history_coords, 2) >= 1
+                    history_coords[:, 1] = x_coords # Insert current z(k)
+                end
+                recur["delay_coords_vecs"] = history_coords
+
+                # Update input history
+                history_u = recur["delay_u_vecs"]
+                 if size(history_u, 2) > 1
+                    history_u[:, 2:end] = history_u[:, 1:end-1]
+                end
+                if size(history_u, 2) >= 1
+                    history_u[:, 1] = u # Insert current u(k)
+                end
+                recur["delay_u_vecs"] = history_u
+            end
+
+            return vec(next_state_high_dim), recur
         end
 
-        # Number of steps needed to fill the history buffers before predictions are based on real past data
-        initialization_length = max_delay
+        initialization_length = max_delay # Need 'max_delay' steps to fill history
 
-        return model_fn, initialization_length
+        return model_fn, initialization_length, solution
 
     catch e
-        @error "Linear regression failed in create_delay_step_linmodel_with_inputs. Check data rank/conditioning." exception=(e, catch_backtrace())
+        @error "Operation failed in create_delay_step_linmodel_pod_first_with_input_delay." exception=(e, catch_backtrace())
         rethrow(e)
     end
 end
+
 
 function standardize_data(data::AbstractArray{Float64, 2})
     # Calculate mean for each feature (row)
@@ -1018,4 +1034,51 @@ function simulate_model(x₀::Vector{Float64}, U::Matrix{Float64}, model_fn_tupl
     # The loop stores the state *at* time step k (using input u(k)) before calculating state k+1.
     # The size of predicted_states is T_pred = T_total - init_len.
     return predicted_states
+end
+
+function extract_dmdc_matrices(solution::Matrix{Float64}, n_x_coords::Int, n_u::Int, shift::Int)
+    num_A_matrices = shift + 1
+    num_B_matrices = shift + 1
+
+    # --- Calculate expected dimensions ---
+    expected_cols = n_x_coords * num_A_matrices + n_u * num_B_matrices + 1
+    expected_rows = n_x_coords
+
+    if size(solution) != (expected_rows, expected_cols)
+        error("Dimension mismatch: Input solution matrix has size $(size(solution)), but expected ($expected_rows, $expected_cols) based on n_x_coords=$n_x_coords, n_u=$n_u, shift=$shift.")
+    end
+
+    # --- Initialize storage ---
+    As = Vector{Matrix{Float64}}(undef, num_A_matrices)
+    Bs = Vector{Matrix{Float64}}(undef, num_B_matrices)
+
+    # --- Extract A matrices ---
+    current_col = 1
+    for i in 0:shift # Corresponds to A₀, A₁, ..., A_shift
+        start_col = current_col
+        end_col = current_col + n_x_coords - 1
+        As[i+1] = solution[:, start_col:end_col]
+        current_col = end_col + 1
+    end
+
+    # --- Extract B matrices ---
+    for i in 0:shift # Corresponds to B₀, B₁, ..., B_shift
+        start_col = current_col
+        end_col = current_col + n_u - 1
+        # Handle case where n_u might be 0 (no control input)
+        if n_u > 0
+             Bs[i+1] = solution[:, start_col:end_col]
+             current_col = end_col + 1
+        else
+            # If no inputs, create empty matrices of correct size
+             Bs[i+1] = zeros(n_x_coords, 0)
+             # current_col remains unchanged as no columns were consumed
+        end
+    end
+
+    # --- Extract C vector ---
+    # C is the last column
+    C = solution[:, end] # This automatically becomes a Vector
+
+    return As, Bs, C
 end

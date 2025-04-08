@@ -8,6 +8,12 @@ function solve_explicit(X_curr, X_next)
     return (X_curr' \ X_next')'
 end
 
+function solve_fastdmd(X_curr, X_next)
+    G = 1/size(X_curr,2) * X_next * X_curr'
+    H = 1/size(X_curr,2) * X_curr * X_curr' 
+    return G*pinv(H)
+end
+
 function solve_iterative(X_curr, X_next; solver=lsqr, kwargs...)
     # Define the matrices for the standard Ax = B form derived from
     # Y * X_curr = X_next  =>  X_curr' * Y' = X_next'

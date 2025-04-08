@@ -1,6 +1,7 @@
 using LinearAlgebra
 using Statistics
 
+
 """
     pod_pca(data_matrix::Matrix{Float64}; num_modes::Union{Nothing, Int}=nothing, center::Bool=true)
 
@@ -25,7 +26,7 @@ snapshots/observations as columns (n_features x n_snapshots).
 - `explained_variance_ratio::Vector{Float64}`: The fraction of total variance/energy captured by each mode (calculated from singular values).
 - `mean_vector::Union{Nothing, Vector{Float64}}`: The mean vector subtracted if `center=true`, otherwise `nothing`.
 """
-function pod_pca(data_matrix::Matrix{Float64}; num_modes::Union{Nothing, Int}=nothing, center::Bool=true)
+function pod_pca(data_matrix::Matrix{<:Real}; num_modes::Union{Nothing, Int}=nothing, center::Bool=true)
     n_features, n_snapshots = size(data_matrix)
 
     # --- 1. Center Data (Optional) ---
@@ -87,3 +88,4 @@ function pod_pca(data_matrix::Matrix{Float64}; num_modes::Union{Nothing, Int}=no
 
     return modes, S, temporal_coeffs, explained_variance_ratio, mean_vector
 end
+
