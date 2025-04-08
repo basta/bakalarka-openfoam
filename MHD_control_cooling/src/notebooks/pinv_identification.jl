@@ -16,9 +16,6 @@ macro bind(def, element)
     #! format: on
 end
 
-# ╔═╡ abbfee84-0188-11f0-0a28-679196b7d942
-using LinearAlgebra, JLD2, Statistics, CairoMakie, ControlSystems, RollingFunctions, SimplePlutoInclude, Revise, PlutoUI. RollingFunctions, IterativeSolvers , LowRankApprox
-
 # ╔═╡ c32bad11-574c-4182-9288-caa79b36e395
 u_e, u_m = let
 	using JuMP
@@ -73,19 +70,23 @@ u_e, u_m = let
 	u_e, u_m
 end
 
-# ╔═╡ 862e5d81-2656-4375-8487-d10d97e5aece
-using PlutoUI
-
 # ╔═╡ 1c11a287-4d02-4f9a-a091-b5cd3ea8174e
 begin
-	X_data = jldopen("../../data/dataset-live.jld2")["dataset"][2];
-	X_data = X_data[1:400,:]; 
+	X_data = jldopen("../../data/dataset-live-fast.jld2")["dataset"][2];
+	X_data = (X_data[1:401,:]); 
+	Q_mean = mean(X_data[401, :])
+	T_mean = mean(X_data[1:400, :])
+	X_data[401, :] *=  T_mean / Q_mean
 	 
-	U_data = jldopen("../../data/dataset-live.jld2")["dataset"][1];
+	U_data = (jldopen("../../data/dataset-live-fast.jld2")["dataset"][1]);
 	N_states = size(X_data,1)   
 	N_inputs = Int((size(U_data,1)/2)^2)  
 	SHIFT = 5
-end
+	X_data 
+end 
+
+# ╔═╡ c22a5944-aa1a-4929-a638-aedd6cde6fb1
+X_data 
 
 # ╔═╡ 3474d2bc-982c-430d-a656-8a9a6f211597
 U = let
@@ -102,8 +103,8 @@ U
 
 # ╔═╡ 8ec3a9df-c25a-4817-b838-8746182346e9
 begin
-	@plutoinclude "../pinverses.jl"    
-	@plutoinclude "../sys_models.jl"         
+	@plutoinclude "../pinverses.jl"         
+	@plutoinclude "../sys_models.jl"             
 end; 
 
 # ╔═╡ 9b35d8b8-bc89-4921-8e09-67e3c9c18213
@@ -113,32 +114,33 @@ begin
 end 
 
 # ╔═╡ 1af1a5b1-f9fe-4ea9-90b3-d4988eb01606
-
+linmodel_fn, lin_init = create_linmodel(X_data, U)      
 
 # ╔═╡ bbf84e47-3ad5-4f6c-874d-67ae168d007e
 begin
-	delay = 2
-	Nth = 1
-	model_fn = create_delay_step_linmodel_pod_first(X_data, U, delay, Nth, 400)  
-	linmodel_fn = create_linmodel(X_data, U)      
+	# delay = 7
+	# Nth = 6
+	delay = 
+	Nth = 6
+	model_fn, model_init, model_mat = create_delay_step_linmodel_pod_first_with_input_delay(X_data, U, delay, Nth, 390, skip_pod=false)   
 end 
 
 
 # ╔═╡ 80caaf05-380c-4b5a-b5ac-fc1c3ac96a94
 begin
 	eval_len = 50
-	N_samples = 300
+	N_samples = 300 
 	
 	init_len = delay*(Nth-1)
 	using Random
 	seed = 1234
 	Random.seed!(seed)
 
-	avgs = []
+	avgs = [] 
 
-	starts = rand(1:10000, N_samples)
+	starts = rand(1:1000, N_samples)
 	for start in starts
-		states = simulate_model(X_data[:, start], U[:, start:start+eval_len+init_len], linmodel_fn, X_data[:, start:start+eval_len]) 
+		states = simulate_model(X_data[:, start], U[:, start:start+eval_len+init_len], (model_fn, model_init), X_data[:, start:start+eval_len]) 
 		real_states = X_data[:, start+init_len:start+eval_len+init_len]
 		push!(avgs,mean(abs.(real_states - states[:, init_len+1:end])))
 	end
@@ -146,25 +148,29 @@ begin
 	"Average temperature deviation is $(mean(avgs))"
 end
 
+# ╔═╡ a854e3e6-3f6e-4668-96c0-51903fd134f7
+model_mat
+
 # ╔═╡ 9bb505a2-63f4-4797-8310-99ce24de8c70
-@bind start_s PlutoUI.Slider(5000:1:7000, show_value=true)  
+@bind start_s PlutoUI.Slider(5000:1:7000, show_value=true)    
 
 # ╔═╡ c9ae8e90-de39-40a8-87b7-f7ce896c3d67
+# ╠═╡ show_logs = false
 begin
-	start = 200000
+	start = 200000 
 	start = start_s  
 	
-	len = 700
-	idx = 20
-	states = simulate_model(X_data[:, start], U[:, start:start+len], model_fn, X_data[:, start:start+len]) 
-	states2 = simulate_model(X_data[:, start], U[:, start:start+len], linmodel_fn, X_data[:, start:start+len]) 
+	len = 500
+	idx = 401
+	states = simulate_model(X_data[:, start], U[:, start:start+len], (model_fn, model_init), X_data[:, start:start+len]) 
+	states2 = simulate_model(X_data[:, start], U[:, start:start+len], (linmodel_fn, lin_init), X_data[:, start:start+len]) 
 	
     
 	fig = Figure()
 	ax = Axis(fig[1,1])
-	lines!(ax, states[idx, :], label = "model")
-	lines!(ax, states2[idx, :], label = "lin")
-	lines!(ax, X_data[idx, start:start+len], label = "real")
+	lines!(ax, states[idx, :]/T_mean*Q_mean, label = "model")
+    lines!(ax, states2[idx, :], label = "lin")
+	lines!(ax, X_data[idx, start:start+len]/T_mean*Q_mean, label = "real")
 	
 	# If you uncommented this line, you'd need to add a label for it as well
 	# lines!(ax, [ones(50)*315; rollmean(X_data[idx, start+20:start+len], 1)], label = "rolled_real")
@@ -172,9 +178,8 @@ begin
 	axislegend(ax) # Add a legend to display the labels
 	
 	ax = Axis(fig[2,1])
-	lines!(U_data[1, start:start+len])
-	
-	
+	mean_inp = mean(U_data[:, start:start+len],dims=1)[1, :]
+	lines!(mean_inp)
 	fig
 end
 
@@ -182,7 +187,7 @@ end
 rada
 
 # ╔═╡ e6e88899-cd4c-4922-a53b-eda8b88ec030
-@bind n_predict PlutoUI.Slider(1:len, show_value=true)
+@bind n_predict PlutoUI.Slider(1:len, show_value=true) 
 
 # ╔═╡ a9e3bf47-e034-4e79-937a-52fd15d55685
 
@@ -190,24 +195,312 @@ rada
 # ╔═╡ e4d1e00a-0001-473f-b79d-fc96a3642a4c
 let
 	fig_compare = Figure(size=(800,400)); 
-	real_data = X_data[:, start:start+len]
+	real_data = X_data[:, start:start+len] 
 	
 	ax = Axis(fig_compare[1,1])
-	heatmap!(reshape(states[:, n_predict], 20, 20))
+	heatmap!(reshape(states[1:400, n_predict], 20, 20))
 	ax = Axis(fig_compare[1,2])
-	heatmap!(reshape(real_data[1:N_states, n_predict], 20, 20))
+	heatmap!(reshape(real_data[1:400, n_predict], 20, 20))
 	Label(fig_compare[0,1:2], "State at $n_predict steps in the future")
 	fig_compare
 end
 
 # ╔═╡ 30bd179e-7042-45ca-b82b-4ed25fd9ea6d
-X_data[:,2000:end]
+if false
+let 
+	N_T_states = 400
+	max_predict = 500
+	n_predict_range = 1:max_predict # The range of prediction steps to animate
+	framerate = 30 # Frames per second for the animation
+	output_filename = "/home/basta/Videos/state_comparison_animation.mp4" # Or .gif, .webm
+	
+	# Determine consistent color range for heatmaps (important for comparison!)
+	# Calculate based on the min/max across the relevant portion of both datasets
+	real_data_subset = X_data[1:N_T_states, start:start+len-1] # Adjust index if len != max_predict
+	min_val = min(minimum(states[1:N_T_states, n_predict_range]), minimum(real_data_subset[1:N_T_states, n_predict_range]))
+	max_val = max(maximum(states[1:N_T_states, n_predict_range]), maximum(real_data_subset[1:N_T_states, n_predict_range]))
+	color_lims = (min_val, max_val)
+	
+	# --- Create Figure and Observables ---
+	fig_compare = Figure(size=(900, 500)) # Slightly wider for colorbars
+	
+	# Observable for the current prediction step
+	n_predict_obs = Observable(first(n_predict_range))
+	
+	# Observables for the heatmap data (using @lift to automatically update)
+	# This assumes your state can be reshaped into a 20x20 grid. Adjust if needed.
+	predicted_data_obs = @lift(reshape(states[1:N_T_states, $n_predict_obs], 20, 20))
+	real_data_obs = @lift(reshape(X_data[1:N_T_states, start + $n_predict_obs - 1], 20, 20)) # Adjust index for X_data
+	
+	# Observable for the title/label
+	title_obs = @lift("Comparison at $($n_predict_obs) steps (T = $($n_predict_obs*0.5)s")
+	
+	# --- Create Axes and Plots ---
+	Label(fig_compare[0, 1:2], title_obs, fontsize=20, tellwidth=false) # Main title
+	# Label(fig_compare[1, 1], title_obs, fontsize=20, tellwidth=false)  # Main title
+	# Label(fig_compare[1, 2], title_obs, fontsize=20, tellwidth=false) # Main title
+	
+	ax_pred = Axis(fig_compare[1, 1], title="Predicted State", aspect=DataAspect())
+	hm_pred = heatmap!(ax_pred, predicted_data_obs, colorrange=color_lims)
+	Colorbar(fig_compare[1, 0], hm_pred, label="Value", flipaxis=false) # Colorbar left of predicted
+	
+	ax_real = Axis(fig_compare[1, 2], title="Real State", aspect=DataAspect())
+	hm_real = heatmap!(ax_real, real_data_obs, colorrange=color_lims)
+	Colorbar(fig_compare[1, 3], hm_real, label="Value") # Colorbar right of real
+	
+	# Hide decorations for cleaner heatmaps if desired
+	# hidespines!(ax_pred)
+	# hidedecorations!(ax_pred, label = false)
+	# hidespines!(ax_real)
+	# hidedecorations!(ax_real, label = false)
+	
+	# --- Record the Animation ---
+	record(fig_compare, output_filename, n_predict_range; framerate=framerate) do 		current_n_predict
+		n_predict_obs[] = current_n_predict # Update the observable, plots update automatically
+		# Optional: Add a small pause if needed, but usually not necessary with Observables
+		# sleep(0.01)
+	end
+	
+	println("Animation saved to $output_filename")
+	# You might want to display the figure in an interactive environment too
+	# fig_compare
+end
+end
+
+# ╔═╡ f7761161-1e29-468e-8417-8dec8f4ddbcc
+if true 
+# --- User Parameters ---
+max_predict = 500
+	
+n_predict_range = 1:max_predict # The range of prediction steps to animate
+framerate = 30 # Frames per second for the animation
+output_filename = "/home/basta/Videos/state_comparison_with_q_animation.mp4" # Or .gif, .webm
+dt = 0.5 # Time step for the x-axis of the line chart
+N_T_states = 400
+
+
+# --- Pre-calculate Metric for all time steps ---
+# Ensure we only calculate for the range being animated
+predict_indices = 1:max_predict # Indices in 'states' corresponding to n_predict_range
+real_indices = (start + first(n_predict_range) - 1):(start + last(n_predict_range) - 1) # Indices in X_data
+
+predicted_q_values = states[end, predict_indices]
+real_q_values = X_data[end, real_indices]
+time_values = (n_predict_range .- first(n_predict_range)) .* dt # Time axis starting from 0
+
+# --- Determine consistent color range for heatmaps ---
+# Calculate based on the min/max across the relevant portion of both datasets
+min_val = min(minimum(states[1:N_T_states, predict_indices]), minimum(X_data[1:N_T_states, real_indices]))
+max_val = max(maximum(states[1:N_T_states, predict_indices]), maximum(X_data[1:N_T_states, real_indices]))
+color_lims = (min_val, max_val)
+
+# --- Determine Y-axis limits for the Q plot ---
+q_min = min(minimum(predicted_q_values), minimum(real_q_values))
+q_max = max(maximum(predicted_q_values), maximum(real_q_values))
+q_padding = (q_max - q_min) * 0.1 # Add 10% padding
+q_lims = (q_min - q_padding, q_max + q_padding)
+
+# --- Create Figure and Observables ---
+fig_compare = Figure(size=(900, 750)) # Increased height for the line chart
+
+# Observable for the current prediction step index (relative to n_predict_range)
+n_predict_idx_obs = Observable(1) # Index within the range 1:length(n_predict_range)
+
+# Observable for the actual prediction step number
+n_predict_obs = @lift(n_predict_range[$n_predict_idx_obs])
+
+# Observables for the heatmap data (using @lift to automatically update)
+# Assumes your state can be reshaped into a 20x20 grid. Adjust if needed.
+predicted_data_obs = @lift(reshape(states[1:N_T_states, $n_predict_obs], 20, 20))
+real_data_obs = @lift(reshape(X_data[1:N_T_states, start + $n_predict_obs - 1], 20, 20)) # Adjust index for X_data
+
+# Observable for the title/label
+title_obs = @lift("Comparison at step $($n_predict_obs) (T = $(($n_predict_obs - first(n_predict_range))*dt) s)")
+
+# Observables for the current Q values and time for the scatter marker
+current_time_obs = @lift(time_values[$n_predict_idx_obs])
+current_predicted_q_obs = @lift(predicted_q_values[$n_predict_idx_obs])
+current_real_q_obs = @lift(real_q_values[$n_predict_idx_obs])
+
+# --- Create Layout and Plots ---
+Label(fig_compare[1, 1:2], title_obs, fontsize=20, tellwidth=false, halign=:center) # Main title (row 1)
+
+# Heatmaps (row 2)
+ax_pred = Axis(fig_compare[2, 1], title="Predicted State", aspect=DataAspect())
+hm_pred = heatmap!(ax_pred, predicted_data_obs, colorrange=color_lims)
+Colorbar(fig_compare[2, 0], hm_pred, label="Value", flipaxis=false, width=15) # Colorbar left
+
+ax_real = Axis(fig_compare[2, 2], title="Real State", aspect=DataAspect())
+hm_real = heatmap!(ax_real, real_data_obs, colorrange=color_lims)
+Colorbar(fig_compare[2, 3], hm_real, label="Value", width=15) # Colorbar right
+
+# Hide decorations if desired
+# hidespines!(ax_pred); hidedecorations!(ax_pred, label = false)
+# hidespines!(ax_real); hidedecorations!(ax_real, label = false)
+
+# Line Chart (row 3)
+ax_q = Axis(fig_compare[3, 1:2], xlabel="Time (s)", ylabel="Heatflow Q", title="Heatflow Q vs Time")
+ylims!(ax_q, q_lims) # Set fixed y-limits for consistency
+
+# Plot the full Q history
+lines!(ax_q, time_values, predicted_q_values, color=:dodgerblue, label="Predicted Q")
+lines!(ax_q, time_values, real_q_values, color=:orangered, label="Real Q")
+
+# Add scatter markers for the current time step
+scatter!(ax_q, current_time_obs, current_predicted_q_obs, color=:dodgerblue, marker=:circle, markersize=12, strokecolor=:black, strokewidth=1)
+scatter!(ax_q, current_time_obs, current_real_q_obs, color=:orangered, marker=:xcross, markersize=12, strokecolor=:black, strokewidth=1)
+
+# Add legend to the Q plot
+axislegend(ax_q, position=:rt) # Position legend (e.g., :rt for right-top)
+
+# # Adjust layout spacing
+# rowgap!(fig_compare, 1, 10) # Gap below title
+# rowgap!(fig_compare, 2, 20) # Gap below heatmaps
+# colgap!(fig_compare, 1, 5) # Gap between heatmaps
+
+# --- Record the Animation ---
+record(fig_compare, output_filename, 1:length(n_predict_range); framerate=framerate) do current_idx
+    n_predict_idx_obs[] = current_idx # Update the index observable
+end
+
+println("Animation saved to $output_filename")
+# display(fig_compare) # Display the final figure if in an interactive environment
+end
+
+# ╔═╡ 7eaa48d9-43c2-4912-bda6-1f33288504e8
+function create_comparison_animation(
+    states::AbstractMatrix,
+    X_data::AbstractMatrix,
+    start_index::Int,
+    n_predict_range::AbstractRange,
+    grid_dims::Tuple{Int, Int},
+    output_filename::String;
+    framerate::Int = 30,
+    dt::Real = 0.5,
+    q_label::String = "Heatflow Q",
+    error_label::String = "Mean Abs Error",
+    figure_size::Tuple{Int, Int} = (900, 950)
+)
+    N_T_states = prod(grid_dims)
+    if size(states, 1) != N_T_states + 1 || size(X_data, 1) != N_T_states + 1
+        error("First dimension of states and X_data must be N_T_states + 1 (=$(N_T_states+1))")
+    end
+    if maximum(n_predict_range) > size(states, 2)
+         error("n_predict_range exceeds the number of columns in states")
+    end
+     if (start_index + maximum(n_predict_range) - 1) > size(X_data, 2)
+         error("n_predict_range combined with start_index exceeds the number of columns in X_data")
+     end
+
+
+    # --- Indices and Time ---
+    predict_indices = n_predict_range # Indices in 'states' corresponding to n_predict_range
+    real_indices = (start_index .+ n_predict_range .- 1) # Corresponding indices in X_data
+    time_values = (n_predict_range .- first(n_predict_range)) .* dt # Time axis starting from 0
+
+    # --- Pre-calculate Metrics ---
+    # Q values (assumed to be the last row)
+    predicted_q_values = vec(states[end, predict_indices]) # Use vec() to ensure 1D array
+    real_q_values = vec(X_data[end, real_indices])
+
+    # Mean Absolute Error
+    error_values = [
+        mean(abs.(states[1:N_T_states, p_idx] .- X_data[1:N_T_states, r_idx]))
+        for (p_idx, r_idx) in zip(predict_indices, real_indices)
+    ]
+
+    # --- Determine Plot Limits ---
+    # Color limits for heatmaps
+    min_val = min(minimum(states[1:N_T_states, predict_indices]), minimum(X_data[1:N_T_states, real_indices]))
+    max_val = max(maximum(states[1:N_T_states, predict_indices]), maximum(X_data[1:N_T_states, real_indices]))
+    color_lims = (min_val, max_val)
+
+    # Y-limits for Q plot
+    q_min = min(minimum(predicted_q_values), minimum(real_q_values))
+    q_max = max(maximum(predicted_q_values), maximum(real_q_values))
+    q_padding = (q_max - q_min) * 0.1 # Add 10% padding
+    q_lims = isapprox(q_min, q_max) ? (q_min - 0.1, q_max + 0.1) : (q_min - q_padding, q_max + q_padding) # Handle case where min=max
+
+     # Y-limits for Error plot
+     err_min = minimum(error_values)
+     err_max = maximum(error_values)
+     err_padding = (err_max - err_min) * 0.1 # Add 10% padding
+     err_lims = isapprox(err_min, err_max) ? (err_min - 0.1, err_max + 0.1) : (err_min - err_padding, err_max + err_padding) # Handle case where min=max
+
+
+    # --- Create Figure and Observables ---
+    fig = Figure(size=figure_size)
+
+    # Observable for the current animation frame index (1 to length(n_predict_range))
+    frame_idx_obs = Observable(1)
+
+    # Observable for the actual prediction step number
+    n_predict_obs = @lift(n_predict_range[$frame_idx_obs])
+    # Observable for the corresponding index in X_data
+    real_idx_obs = @lift(start_index + $n_predict_obs - 1)
+
+    # Observables for the heatmap data
+    predicted_data_obs = @lift(reshape(states[1:N_T_states, $n_predict_obs], grid_dims...))
+    real_data_obs = @lift(reshape(X_data[1:N_T_states, $real_idx_obs], grid_dims...))
+
+    # Observable for the title
+    title_obs = @lift("Comparison at step $($n_predict_obs) (T = $(time_values[$frame_idx_obs]) s)")
+
+    # Observables for the current metric values and time for scatter markers
+    current_time_obs = @lift(time_values[$frame_idx_obs])
+    current_predicted_q_obs = @lift(predicted_q_values[$frame_idx_obs])
+    current_real_q_obs = @lift(real_q_values[$frame_idx_obs])
+    current_error_obs = @lift(error_values[$frame_idx_obs])
+
+    # --- Create Layout and Plots ---
+    Label(fig[1, 1:2], title_obs, fontsize=20, tellwidth=false, halign=:center) # Main title (row 1)
+
+    # Heatmaps (row 2)
+    ax_pred = Axis(fig[2, 1], title="Predicted State", aspect=DataAspect())
+    hm_pred = heatmap!(ax_pred, predicted_data_obs, colorrange=color_lims)
+    Colorbar(fig[2, 0], hm_pred, label="Value", flipaxis=false, width=15)
+
+    ax_real = Axis(fig[2, 2], title="Real State", aspect=DataAspect())
+    hm_real = heatmap!(ax_real, real_data_obs, colorrange=color_lims)
+    Colorbar(fig[2, 3], hm_real, label="Value", width=15)
+
+    # Q Line Chart (row 3)
+    ax_q = Axis(fig[3, 1:2], xlabel="Time (s)", ylabel=q_label, title="$q_label vs Time")
+    ylims!(ax_q, q_lims)
+    lines!(ax_q, time_values, predicted_q_values, color=:dodgerblue, label="Predicted Q")
+    lines!(ax_q, time_values, real_q_values, color=:orangered, label="Real Q")
+    scatter!(ax_q, current_time_obs, current_predicted_q_obs, color=:dodgerblue, marker=:circle, markersize=12, strokecolor=:black, strokewidth=1)
+    scatter!(ax_q, current_time_obs, current_real_q_obs, color=:orangered, marker=:xcross, markersize=12, strokecolor=:black, strokewidth=1)
+    axislegend(ax_q, position=:rt)
+
+    # Error Line Chart (row 4)
+    ax_err = Axis(fig[4, 1:2], xlabel="Time (s)", ylabel=error_label, title="$error_label vs Time")
+    ylims!(ax_err, err_lims)
+    lines!(ax_err, time_values, error_values, color=:purple, label="MAE")
+    scatter!(ax_err, current_time_obs, current_error_obs, color=:purple, marker=:diamond, markersize=12, strokecolor=:black, strokewidth=1)
+    # axislegend(ax_err, position=:rt) # Legend optional if only one line
+
+    # Adjust layout spacing
+    rowgap!(fig.layout, 1, 10) # Gap below title
+    rowgap!(fig.layout, 2, 20) # Gap below heatmaps
+    rowgap!(fig.layout, 3, 20) # Gap below Q plot
+    colgap!(fig.layout, 1, 5)  # Gap between heatmaps
+
+    # --- Record the Animation ---
+    record(fig, output_filename, 1:length(n_predict_range); framerate=framerate) do current_frame_idx
+        frame_idx_obs[] = current_frame_idx # Update the frame index observable
+    end
+
+    println("Animation saved to $output_filename")
+    return fig # Return the figure object
+end
+
 
 # ╔═╡ 84a20361-e435-426d-b3b2-aa4313a097b9
-
+As, Bs, S = extract_dmdc_matrices(model_mat, 401, 16, 7)
 
 # ╔═╡ d25e1020-036e-4357-9fee-938e916f0098
-
+create_comparison_animation(states, X_data, start, 1:500, (20,20), "/home/basta/Videos/comparison.mp4")
 
 # ╔═╡ 5d864b89-5b85-473d-b069-de56eb35b818
 # ╠═╡ disabled = true
@@ -312,7 +605,7 @@ let
 end
 
 # ╔═╡ a2547bdd-3d27-4eea-a111-2d009d430da4
-X_combined
+jldsave("../../data/solution.jld2", As=As, Bs=Bs, S=S)
 
 # ╔═╡ a058051a-74fe-41de-b56d-7ed9f5f0f6eb
 let
@@ -342,7 +635,9 @@ U = ones(2,2q)
   ╠═╡ =#
 
 # ╔═╡ 306a44fd-3a7a-4b3f-976b-f467393490f7
+#=╠═╡
 A = X_next*pinv(X);
+  ╠═╡ =#
 
 # ╔═╡ 87e5ce14-f973-4089-a4ca-cf612a9703b9
 let
@@ -507,7 +802,10 @@ minimum(res)
 final_r
 
 # ╔═╡ 8ef70851-06be-4bc3-82ef-1a25c2140a6b
+sum([A[end, :] for A in As])
 
+# ╔═╡ e3a84912-9f9f-40d2-a77c-2359563ea3a0
+svd(As[1])
 
 # ╔═╡ 700a5d53-cc8b-4bac-a7c3-1fc64b5463f2
 let
@@ -521,6 +819,7 @@ let
 end
 
 # ╔═╡ bb38a269-d5ca-4e70-9285-11cd0ff34f7e
+#=╠═╡
 let
 	u = rand(4)
 	B = B_sol
@@ -540,9 +839,16 @@ let
 	inv(I - A)*(B*vec(best_in[1:4]*best_in[5:8]')+S_sol)
 	best_in[1:4]*best_in[5:8]'
 end
+  ╠═╡ =#
 
 # ╔═╡ 99dfdb21-51dc-4ff1-bdaa-57407eeeb81c
 diagm([1 zeros(16)']')*B_sol
+
+# ╔═╡ abbfee84-0188-11f0-0a28-679196b7d942
+using LinearAlgebra, JLD2, Statistics, CairoMakie, ControlSystems, RollingFunctions, SimplePlutoInclude, Revise, PlutoUI, IterativeSolvers , LowRankApprox
+
+# ╔═╡ 862e5d81-2656-4375-8487-d10d97e5aece
+using PlutoUI
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -3380,11 +3686,13 @@ version = "3.6.0+0"
 # ╔═╡ Cell order:
 # ╠═abbfee84-0188-11f0-0a28-679196b7d942
 # ╠═1c11a287-4d02-4f9a-a091-b5cd3ea8174e
+# ╠═c22a5944-aa1a-4929-a638-aedd6cde6fb1
 # ╠═3474d2bc-982c-430d-a656-8a9a6f211597
 # ╠═e5fcce4f-25a2-487b-a7f5-f8e18d36e8f9
 # ╠═8ec3a9df-c25a-4817-b838-8746182346e9
 # ╠═1af1a5b1-f9fe-4ea9-90b3-d4988eb01606
 # ╠═bbf84e47-3ad5-4f6c-874d-67ae168d007e
+# ╠═a854e3e6-3f6e-4668-96c0-51903fd134f7
 # ╠═9bb505a2-63f4-4797-8310-99ce24de8c70
 # ╠═c9ae8e90-de39-40a8-87b7-f7ce896c3d67
 # ╠═80caaf05-380c-4b5a-b5ac-fc1c3ac96a94
@@ -3393,7 +3701,9 @@ version = "3.6.0+0"
 # ╠═a9e3bf47-e034-4e79-937a-52fd15d55685
 # ╠═e4d1e00a-0001-473f-b79d-fc96a3642a4c
 # ╠═9b35d8b8-bc89-4921-8e09-67e3c9c18213
-# ╠═30bd179e-7042-45ca-b82b-4ed25fd9ea6d
+# ╟─30bd179e-7042-45ca-b82b-4ed25fd9ea6d
+# ╠═f7761161-1e29-468e-8417-8dec8f4ddbcc
+# ╠═7eaa48d9-43c2-4912-bda6-1f33288504e8
 # ╠═84a20361-e435-426d-b3b2-aa4313a097b9
 # ╠═d25e1020-036e-4357-9fee-938e916f0098
 # ╠═5d864b89-5b85-473d-b069-de56eb35b818
@@ -3423,6 +3733,7 @@ version = "3.6.0+0"
 # ╠═a886c61f-bc43-4d0f-a67f-e046e8a9e946
 # ╠═8abb11a0-890e-4344-b26e-7210bacba58b
 # ╠═8ef70851-06be-4bc3-82ef-1a25c2140a6b
+# ╠═e3a84912-9f9f-40d2-a77c-2359563ea3a0
 # ╠═700a5d53-cc8b-4bac-a7c3-1fc64b5463f2
 # ╠═bb38a269-d5ca-4e70-9285-11cd0ff34f7e
 # ╠═99dfdb21-51dc-4ff1-bdaa-57407eeeb81c
