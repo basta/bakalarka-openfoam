@@ -1,5 +1,5 @@
 // #############################################################################
-// # File: buoyantPimpleFoam.C - Modifications for socket init and temp send #
+// # File: buoyantPimpleFoam.C - Added wall heat flux calculation & sending  #
 // #############################################################################
 /*---------------------------------------------------------------------------*\
   =========                 |
@@ -36,7 +36,8 @@ Group
 Description
     Transient solver for buoyant, turbulent flow of compressible fluids
     for ventilation and heat-transfer, with optional mesh motion
-    and mesh topology changes. Includes socket communication for external coupling.
+    and mesh topology changes. Includes socket communication for external coupling,
+    sending temperature field and calculated wall heat flux.
 
 \*---------------------------------------------------------------------------*/
 
@@ -51,7 +52,7 @@ Description
 #include "pressureControl.H"
 #include "localEulerDdtScheme.H"
 #include "fvcSmooth.H"
-
+// Removed incorrect include: #include "basicThermophysicalModel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -65,7 +66,7 @@ int main(int argc, char *argv[])
         "Transient solver for buoyant, turbulent fluid flow"
         " of compressible fluids, including radiation,"
         " with optional mesh motion and mesh topology changes,"
-        " and external socket coupling." // Updated description
+        " and external socket coupling (Forces, Temp, WallHeatFlux)." // Updated description
     );
 
     #include "postProcess.H"
@@ -76,8 +77,7 @@ int main(int argc, char *argv[])
     #include "createDynamicFvMesh.H"
     #include "createDyMControls.H"
 
-    // --- Initialize Socket Connection ---
-    // Reads IP and Port from system/controlDict, defaults to 127.0.0.1:8080
+    // --- Read Solver Configuration ---
     IOdictionary controlDict
     (
         IOobject
@@ -90,17 +90,27 @@ int main(int argc, char *argv[])
         )
     );
 
+    // Socket settings
     word serverIP = controlDict.lookupOrDefault<word>("serverIP", "127.0.0.1");
     int serverPort = controlDict.lookupOrDefault<int>("serverPort", 8080);
-    scalar controlInterval = controlDict.lookupOrDefault<scalar>("controlInterval", 5.0); // Use controlDict for interval
+    scalar controlInterval = controlDict.lookupOrDefault<scalar>("controlInterval", 1.0); // Default to 1s
 
+    // Wall patches for heat flux calculation
+    wordList wallPatchNames = controlDict.lookupOrDefault<wordList>("wallHeatFluxPatches", wordList());
+    if (wallPatchNames.empty()) {
+        Info << "No 'wallHeatFluxPatches' specified in controlDict. Wall heat flux will not be calculated or sent." << endl;
+    } else {
+        Info << "Will calculate and send average wall heat flux for patches: " << wallPatchNames << endl;
+    }
+    // ----------------------------------
+
+
+    // --- Initialize Socket Connection ---
     Info << "Attempting to initialize socket connection to "
          << serverIP << ":" << serverPort << endl;
     if (!init_socket(serverIP.c_str(), serverPort))
     {
-        // Decide whether to exit or continue without coupling
          Warning << "Socket initialization failed. Continuing without external coupling." << endl;
-         // or FatalErrorInFunction << "Socket initialization failed." << exit(FatalError);
     }
     // ----------------------------------
 
@@ -109,20 +119,27 @@ int main(int argc, char *argv[])
     #include "initContinuityErrs.H"
     #include "createRhoUfIfPresent.H"
 
-    turbulence->validate();
+    turbulence->validate(); // Ensure turbulence model is set up
 
-    // // Removed patch check - adapt if needed for your specific case
-    // if (hotEndPatchID < 0)
-    // {
-    //     FatalErrorInFunction
-    //         << "Cannot find patch named 'hotEnd' in the mesh boundary." << nl
-    //         << "Please check boundary file and patch name."
-    //         << exit(FatalError);
-    // }
-    // else
-    // {
-    //     Info << "Found patch 'hotEnd' with ID: " << hotEndPatchID << endl;
-    // }
+    // --- Get Wall Patch IDs ---
+    labelList wallPatchIDs;
+    if (!wallPatchNames.empty()) {
+         wallPatchIDs.setSize(wallPatchNames.size());
+         // FIX: Use fvBoundaryMesh type
+         const fvBoundaryMesh& patches = mesh.boundary();
+         forAll(wallPatchNames, i) {
+             label patchID = patches.findPatchID(wallPatchNames[i]);
+             if (patchID < 0) {
+                 FatalErrorInFunction
+                     << "Cannot find patch named '" << wallPatchNames[i]
+                     << "' specified in controlDict entry 'wallHeatFluxPatches'."
+                     << exit(FatalError);
+             }
+             wallPatchIDs[i] = patchID;
+         }
+    }
+    // --------------------------
+
 
     if (!LTS)
     {
@@ -134,19 +151,13 @@ int main(int argc, char *argv[])
 
     Info<< "\nStarting time loop\n" << endl;
 
-    // gradT field for writing (if needed)
-    // volVectorField gradT = fvc::grad(thermo.T()); // Calculate initial gradient if needed immediately
-    // gradT.write(); // Write initial field if needed
-
-    scalar last_control_time = -controlInterval; // Ensure control happens on first step if time > 0
+    scalar last_control_time = -controlInterval; // Ensure control happens on first valid step
 
     while (runTime.run())
     {
         #include "readDyMControls.H"
 
         // Store divrhoU from the previous mesh
-        // so that it can be mapped and used in correctPhi
-        // to ensure the corrected phi has the same divergence
         autoPtr<volScalarField> divrhoU;
         if (correctPhi)
         {
@@ -175,144 +186,185 @@ int main(int argc, char *argv[])
         Info<< "Time = " << runTime.timeName() << nl << endl;
 
 
-        // --- External Coupling Communication ---
-        // Check if enough time has passed and if the socket is connected/can connect
-        bool sendTempNeeded = false; // Initialize flag for sending temperature
-        if (runTime.value() > last_control_time + controlInterval)
-        {
-             if (sock_client && sock_client->isConnected()) // Check if client exists and is connected
-             {
-                Info << "Attempting external coupling communication at t = " << runTime.value() << endl;
-
-                // 1. Request Force Field F
-                auto force_field_data = request_field(runTime.value());
-
-                if (!force_field_data.empty())
-                {
-                     if (force_field_data.size() == F.size())
-                     {
-                        Info << "Received " << force_field_data.size() << " force vectors. Updating F field." << endl;
-                        forAll(F, cellI)
-                        {
-                            // Assuming force_field_data is ordered correctly matching cell IDs
-                            F[cellI] = Foam::vector // Use Foam::vector constructor
-                            (
-                                force_field_data[cellI][0],
-                                force_field_data[cellI][1],
-                                force_field_data[cellI][2]
-                            );
-                        }
-                        // Optional: Write the updated F field if needed for debugging
-                        // F.write();
-                     }
-                     else
-                     {
-                         Warning << "Received force field data size (" << force_field_data.size()
-                                 << ") does not match internal field size (" << F.size() << "). Skipping update." << endl;
-                     }
-                }
-                else
-                {
-                    Warning << "Failed to receive valid force field data from external program." << endl;
-                    // Decide how to handle this - continue with old F? Zero F? Stop?
-                    // For now, it just continues with the existing F field.
-                }
-
-
-                // 2. Send Temperature Field T (after PIMPLE loop converges below)
-                // We will send the temperature *after* the PIMPLE loop finishes for this time step.
-                // Set a flag or store the time to indicate sending is needed.
-                sendTempNeeded = true; // Set flag to true
-
-
-                last_control_time = runTime.value(); // Update time only if communication was attempted
-
-             } else {
-                  Warning << "Skipping external coupling: Socket not connected." << endl;
-                  // Attempt to reconnect for the next interval? init_socket() handles this.
-             }
+        // --- External Coupling Communication Check ---
+        bool performCommunication = false;
+        if (runTime.value() > last_control_time + controlInterval) {
+            if (sock_client && sock_client->isConnected()) {
+                 performCommunication = true;
+                 Info << "Attempting external coupling communication at t = " << runTime.value() << endl;
+            } else {
+                 Warning << "Skipping external coupling: Socket not connected." << endl;
+                 // Attempt to reconnect for the next interval? init_socket() handles this.
+            }
+             // Update time only if communication was attempted (successful or not)
+             last_control_time = runTime.value();
         }
-        // -------------------------------------
+        // ------------------------------------------
 
 
-        // --- Pressure-velocity PIMPLE corrector loop
+        // --- Request Force Field F (if communicating) ---
+        if (performCommunication) {
+            auto force_field_data = request_field(runTime.value());
+            if (!force_field_data.empty()) {
+                 // FIX: Cast F.size() to size_t for safe comparison
+                 if (force_field_data.size() == static_cast<size_t>(F.size())) {
+                    // Info << "Received " << force_field_data.size() << " force vectors. Updating F field." << endl; // Less verbose
+                    forAll(F, cellI) {
+                        F[cellI] = Foam::vector(
+                            force_field_data[cellI][0],
+                            force_field_data[cellI][1],
+                            force_field_data[cellI][2]
+                        );
+                    }
+                 } else {
+                     Warning << "Received force field data size (" << force_field_data.size()
+                             << ") does not match internal field size (" << F.size() << "). Skipping update." << endl;
+                 }
+            } else {
+                Warning << "Failed to receive valid force field data from external program." << endl;
+            }
+        }
+        // ---------------------------------------------
+
+
+        // --- Pressure-velocity PIMPLE corrector loop ---
         while (pimple.loop())
         {
             if (pimple.firstIter() || moveMeshOuterCorrectors)
             {
-                // Store momentum to set rhoUf for introduced faces.
                 autoPtr<volVectorField> rhoU;
-                if (rhoUf.valid())
-                {
+                if (rhoUf.valid()) {
                     rhoU.reset(new volVectorField(IOobject::groupName("rhoU", U.group()), rho*U));
                 }
-
-                // Do any mesh changes
                 mesh.update();
-
-                if (mesh.changing())
-                {
+                if (mesh.changing()) {
                     gh = ((g) & mesh.C()) - ghRef;
                     ghf = ((g) & mesh.Cf()) - ghRef;
-
                     MRF.update();
-
-                    if (correctPhi)
-                    {
-                        // Calculate absolute flux
-                        // from the mapped surface velocity
+                    if (correctPhi) {
                         phi = mesh.Sf() & rhoUf();
-
                         #include "../pimpleFoam/correctPhi.H"
-
-                        // Make the fluxes relative to the mesh-motion
                         fvc::makeRelative(phi, rho, U);
                     }
-
-                    if (checkMeshCourantNo)
-                    {
+                    if (checkMeshCourantNo) {
                         #include "meshCourantNo.H"
                     }
                 }
             }
 
-            if (pimple.firstIter() && !pimple.SIMPLErho())
-            {
+            if (pimple.firstIter() && !pimple.SIMPLErho()) {
                 #include "rhoEqn.H"
             }
 
             #include "UEqn.H" // F field is used here
-
             #include "EEqn.H" // Temperature (he) is solved here, thermo.correct() updates T
 
-            // --- Pressure corrector loop
-            while (pimple.correct())
-            {
-                #include "pEqn.H" // Pressure is corrected
+            while (pimple.correct()) { // Pressure corrector loop
+                #include "pEqn.H"
             }
 
-            if (pimple.turbCorr())
-            {
-                turbulence->correct();
+            if (pimple.turbCorr()) {
+                turbulence->correct(); // Updates turbulence fields like alphat, nut
             }
         } // End PIMPLE loop
 
-        // --- Send Temperature Field (if needed after PIMPLE loop) ---
-         if (sendTempNeeded && sock_client && sock_client->isConnected())
-         {
+
+        // --- Send Data (if communicating) ---
+        if (performCommunication) {
+             // 1. Send Temperature Field T
              Info << "Sending updated temperature field at t = " << runTime.value() << endl;
-             if (!send_temperature(thermo.T(), runTime.value())) // Pass the current temperature field T
-             {
+             if (!send_temperature(thermo.T(), runTime.value())) {
                  Warning << "Failed to send temperature field for t = " << runTime.value() << endl;
              }
-         }
-        // ---------------------------------------------------------
+
+             // 2. Calculate and Send Wall Heat Flux
+             if (!wallPatchIDs.empty()) {
+                 Info << "Calculating and sending wall heat flux for specified patches..." << endl;
+                 std::vector<float> wallFluxData;
+                 wallFluxData.reserve(wallPatchIDs.size());
+
+                 // Get necessary fields
+                 const volScalarField& T = thermo.T();
+                 // FIX: Avoid dangling reference by creating a copy
+                 const volScalarField alphaEff = turbulence->alphaEff();
+                 const fvBoundaryMesh& boundary = mesh.boundary();
+                 // Get reference to the thermo object to access Cp
+                 const basicThermo& basicThermo = thermo;
+                 // FIX: Get Cp field once
+                 const volScalarField Cp = thermo.Cp();
+
+
+                 scalar totalAreaSum = 0;    // For sanity check
+                 scalar totalFluxSum = 0;    // For sanity check
+
+                 forAll(wallPatchIDs, i) {
+                     label patchID = wallPatchIDs[i];
+                     const fvPatch& patch = boundary[patchID];
+                     const scalarField& patchAreas = patch.magSf(); // Face areas
+                     // Access boundary fields correctly
+                     const fvPatchScalarField& alphaEffPatchField = alphaEff.boundaryField()[patchID];
+                     const fvPatchScalarField& TPatchField = T.boundaryField()[patchID];
+                     const fvPatchScalarField& rhoPatchField = rho.boundaryField()[patchID];
+
+
+                     // Calculate surface normal gradient for temperature on the patch
+                     // FIX: Use the temporary result directly in the loop below
+                     // tmp<surfaceScalarField> tsnGradT = TPatchField.snGrad(); // This returns tmp<scalarField>
+                     // const surfaceScalarField& snGradT = tsnGradT();
+
+                     scalar totalPatchFlux = 0.0;
+                     scalar totalPatchArea = 0.0;
+
+                     // Heat flux q = -k_eff * grad(T)_n = - (rho*Cp*alphaEff) * snGrad(T)
+                     // Calculate k_eff = rho * Cp * alphaEff on the patch faces
+
+                     // Need Cp on patch faces. (Using adjacent cell value from Cp field)
+                     // Need p on patch faces (or adjacent cells) for Cp calculation - Not needed if using Cp field directly
+                     // FIX: Remove unused pPatchField declaration
+                     // const fvPatchScalarField& pPatchField = p.boundaryField()[patchID];
+
+
+                     // Get the raw snGrad values for the patch faces
+                     tmp<scalarField> tSnGradValues = TPatchField.snGrad();
+                     const scalarField& snGradValues = tSnGradValues();
+
+
+                     forAll(patch.faceCells(), faceI) {
+                         // Ensure direct access to boundary field values using []
+                         scalar rhoFace = rhoPatchField[faceI];
+                         scalar alphaEffFace = alphaEffPatchField[faceI];
+
+                         label faceCell = patch.faceCells()[faceI];
+                         scalar CpFace = Cp[faceCell]; // Access Cp field value for the cell
+
+                         scalar kEffFace = rhoFace * CpFace * alphaEffFace;
+                         scalar qFace = -kEffFace * snGradValues[faceI]; // Flux density (W/m^2)
+                         totalPatchFlux += qFace * patchAreas[faceI]; // Integrate flux (W)
+                         totalPatchArea += patchAreas[faceI];         // Integrate area (m^2)
+                     }
+
+                     scalar avgFluxDensity = (totalPatchArea > SMALL) ? (totalPatchFlux / totalPatchArea) : 0.0;
+                     wallFluxData.push_back(static_cast<float>(avgFluxDensity));
+
+                     totalAreaSum += totalPatchArea;
+                     totalFluxSum += totalPatchFlux;
+
+                     // Info << "  Patch '" << patch.name() << "' (ID " << patchID << "): Avg Flux = " << avgFluxDensity << " W/m^2" << endl;
+                 }
+                  Info << "  Calculated Avg Fluxes (W/m^2): " << wallFluxData << endl;
+                  // Info << "  Total Flux Sum (W): " << totalFluxSum << ", Total Area Sum (m^2): " << totalAreaSum << endl;
+
+
+                 // Send the calculated average flux data
+                 if (!send_wall_heat_flux(wallFluxData, runTime.value())) {
+                     Warning << "Failed to send wall heat flux data for t = " << runTime.value() << endl;
+                 }
+             }
+        }
+        // ------------------------------------
 
 
         rho = thermo.rho(); // Update rho field based on latest thermo state
-
-        // Optional: Update and write gradT if needed for post-processing
-        // gradT = fvc::grad(thermo.T());
 
         runTime.write();
 
@@ -323,7 +375,7 @@ int main(int argc, char *argv[])
 
     Info<< "End\n" << endl;
 
-    // Disconnect socket explicitly (though unique_ptr destructor handles it too)
+    // Disconnect socket explicitly
     if (sock_client) {
         sock_client->disconnect();
     }

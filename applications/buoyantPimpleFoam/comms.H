@@ -312,8 +312,31 @@ bool send_temperature(const Foam::volScalarField& T, float currentTime) {
     return true;
 }
 
+// --- Function to Send Wall Heat Flux Data ---
+// Sends pre-calculated heat flux values using the global sock_client
+bool send_wall_heat_flux(const std::vector<float>& flux_data, float currentTime) {
+     if (!sock_client || !sock_client->isConnected()) {
+        Foam::Warning << "Cannot send wall heat flux: Socket not initialized or connected." << Foam::endl;
+         // Attempt to re-initialize/reconnect
+         if (!init_socket()) {
+             return false; // Return false if reconnect fails
+         }
+    }
 
-// --- Example usage function (can be removed or adapted) ---
+    // Send Data
+    std::string header = "SEND_WALLHEATFLUX_" + std::to_string(currentTime) + "\n";
+    if (!sock_client->sendData(header.c_str(), flux_data)) {
+        Foam::Warning << "Failed to send wall heat flux data." << Foam::endl;
+        // sendData handles disconnect on error
+        return false;
+    }
+
+    // Foam::Info << "Successfully sent wall heat flux data (" << flux_data.size() << " values) for t=" << currentTime << Foam::endl; // Redundant with sendData info
+    return true;
+}
+
+
+// --- Example usage function ---
 int example() {
     if (!init_socket()) { // Initialize connection
         return 1;

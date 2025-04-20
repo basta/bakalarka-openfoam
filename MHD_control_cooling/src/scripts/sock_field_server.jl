@@ -11,6 +11,7 @@ include("../openfoam/field_utils.jl")
 using .MHD_control_cooling
 using CSV
 using Dates
+using Statistics # Added for potential use with received data (e.g., mean)
 
 # --- Global variable for cell centers ---
 # Initialize as an empty array, will be populated when the server starts
@@ -170,7 +171,6 @@ function handle_client(client::TCPSocket)
 
                     if num_temp_floats < 0
                         @warn "[$client_ip:$client_port] Received negative size for temperature data ($num_temp_floats). Aborting read."
-                        # Consider breaking the loop or handling differently
                         continue # Skip to next request read attempt
                     elseif num_temp_floats == 0
                         @info "[$client_ip:$client_port] Received zero size for temperature data. No data to read."
@@ -180,7 +180,8 @@ function handle_client(client::TCPSocket)
 
                     # 2. Read the Float32 temperature data
                     temp_data = Vector{Float32}(undef, num_temp_floats)
-                    readbytes!(client, reinterpret(UInt8, temp_data), num_temp_floats * sizeof(Float32))
+                    # Use read! for potentially better performance reading into existing vector
+                    read!(client, temp_data) # Reads Float32 directly
 
                     @info "[$client_ip:$client_port] Successfully received $num_temp_floats temperature values."
                     # TODO: Process the received temp_data (e.g., log, use in control)
@@ -194,6 +195,43 @@ function handle_client(client::TCPSocket)
                         @info "[$client_ip:$client_port] Client closed connection (EOF) while receiving temperature data."
                     else
                         @error "[$client_ip:$client_port] Error receiving temperature data: $e"
+                    end
+                    break # Exit loop on read error
+                end
+
+                # --- ADDED BLOCK: Handle Wall Heat Flux Reception ---
+            elseif startswith(request, "SEND_WALLHEATFLUX_")
+                m = match(r"SEND_WALLHEATFLUX_(\d+(\.?\d*))", request) # Match integer or float time
+                time_value_str = (m !== nothing) ? m.captures[1] : "unknown"
+                @info "[$client_ip:$client_port] Receiving wall heat flux data for time ≈ $time_value_str"
+
+                try
+                    # 1. Read the number of floats (as Int32) - this is the number of patches
+                    num_flux_values = read(client, Int32)
+                    @info "[$client_ip:$client_port] Expecting $num_flux_values wall heat flux value(s)."
+
+                    if num_flux_values < 0
+                        @warn "[$client_ip:$client_port] Received negative size for wall heat flux data ($num_flux_values). Aborting read."
+                        continue # Skip to next request read attempt
+                    elseif num_flux_values == 0
+                        @info "[$client_ip:$client_port] Received zero size for wall heat flux data. No data to read."
+                        continue
+                    end
+
+                    # 2. Read the Float32 heat flux data
+                    flux_data = Vector{Float32}(undef, num_flux_values)
+                    read!(client, flux_data) # Reads Float32 directly
+
+                    @info "[$client_ip:$client_port] Successfully received $num_flux_values wall heat flux value(s)."
+                    # TODO: Process the received flux_data
+                    # Example: Print the received values
+                    println("[$client_ip:$client_port] Received Wall Heat Fluxes (W/m^2): $flux_data")
+
+                catch e
+                    if e isa EOFError
+                        @info "[$client_ip:$client_port] Client closed connection (EOF) while receiving wall heat flux data."
+                    else
+                        @error "[$client_ip:$client_port] Error receiving wall heat flux data: $e"
                     end
                     break # Exit loop on read error
                 end
