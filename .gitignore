@@ -5,3 +5,6 @@
 **.jld
 ./MHD_control_cooling/experiments
 .aider*
+**.jld2
+**/*.jld2
+**/*.csv
