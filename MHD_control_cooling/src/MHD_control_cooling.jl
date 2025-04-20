@@ -29,7 +29,7 @@ elMagData = create_trees("./data/forceFields")
 
 
 
-CASE_DIR = "../2d-example-b/"
+CASE_DIR = "../new-sim/"
 TRANS_FUN = example2magman
 
 export CASE_DIR, TRANS_FUN, run_sim, real_force_generator
@@ -41,10 +41,10 @@ function evaluate_criterium(time_path::String, cell_indexes::Vector{Int64})::Flo
     # extract relevant fields
     T_slice = T[cell_indexes]
     # calculate criterium
-    return sum(T_slice)/length(T_slice)
+    return sum(T_slice) / length(T_slice)
 end
 
-function run_sim(inputs::AbstractArray{Float64, 2}, F_times::AbstractVector{Int}; ambient_T::Real=20)
+function run_sim(inputs::AbstractArray{Float64,2}, F_times::AbstractVector{Int}; ambient_T::Real=20)
     @info "Running simulation"
     centers_field_path = "$(CASE_DIR)0/C"
     field_template_path = "./data/fieldsTemplate.mustache"
@@ -56,7 +56,7 @@ function run_sim(inputs::AbstractArray{Float64, 2}, F_times::AbstractVector{Int}
 
     if F_times[end] > parse(Int, case_end_time)
         @warn "Last time value of F_times is higher than case_end_time"
-        push!(F_times,F_times[end])
+        push!(F_times, F_times[end])
     else
         push!(F_times, parse(Int, case_end_time))
     end
@@ -65,18 +65,18 @@ function run_sim(inputs::AbstractArray{Float64, 2}, F_times::AbstractVector{Int}
     set_control_dict_entry(CASE_DIR, "startFrom", "latestTime")
     for i in 1:size(inputs, 2)
         force = real_force_generator(inputs[:, i])
-        field_string = create_force_field_string(force, centers_field_path, field_template_path,inputs[:, i], false)
+        field_string = create_force_field_string(force, centers_field_path, field_template_path, inputs[:, i], false)
         @info "Simtime $(F_times[i+1])"
         set_field_at_time("$(CASE_DIR)", get_last_fields_time(CASE_DIR), field_string, "F")
         set_control_dict_entry(CASE_DIR, "endTime", F_times[i+1])
-        run_case("$(CASE_DIR)", "./icoHeatExternalForce") # TODO use the other solver 
+        run_case("$(CASE_DIR)", "./icoHeatExternalForce") # TODO use the other solver
     end
 end
 
 function get_criterium_in_time(case_path::String)
-    criteria = [];
+    criteria = []
     # slice_idxs = get_slice_xmin(read_field_vector(joinpath(case_path, "0/C")));
-    slice_idxs = get_criteria_cell_indices(joinpath(case_path, "centers.csv"));
+    slice_idxs = get_criteria_cell_indices(joinpath(case_path, "centers.csv"))
     for i in 5:5:1000
         try
             time_name = string(i)
@@ -91,7 +91,7 @@ function get_criterium_in_time(case_path::String)
 end
 
 function log_experiment_json(dir, name, criteria, desc)
-    json = JSON.json(Dict("name"=>name, "criteria"=>criteria, "description"=>desc))
+    json = JSON.json(Dict("name" => name, "criteria" => criteria, "description" => desc))
     open(joinpath(dir, "$name.json"), "w") do f
         write(f, json)
     end
@@ -101,7 +101,7 @@ function real_force_generator(θ, per_partes_out=false)
     @assert length(θ) == 8
     function real_force(x)
         x_mg = MHD_control_cooling.TRANS_FUN(x)
-        return get_force_at_point(elMagData, x_mg, θ, per_partes_out);
+        return get_force_at_point(elMagData, x_mg, θ, per_partes_out)
     end
 end
 

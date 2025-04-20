@@ -53,7 +53,7 @@ const sim_steps = 1000
 # const start_state_val = 2000 # Initial value if NOT using history - REMOVED
 
 # --- History Initialization Parameters (NEW) ---
-const ny_init = 200 # ASSUMPTION: Number of past outputs assumed to be in z state [y_k, y_{k-1}, ..., y_{k-ny+1}]
+const ny_init = 200
 # Set this based on your system identification / state definition.
 # If your state z doesn't explicitly contain past y's like this, adjust the initialization function.
 
@@ -65,26 +65,25 @@ const ny_init = 200 # ASSUMPTION: Number of past outputs assumed to be in z stat
 
 X_data, U, N_X, N_U, TOTAL_SAMPLES = load_and_preprocess_data(history_path)
 
-const z_history_real = X_data[:, 1:10]
+const z_history_real = X_data[:, 1000:2000]
 # u_phys_history_real needs shape (m_phys, num_steps). We need the last N_input_delays steps.
-const u_phys_history_real = U[:, 1:10]
+const u_phys_history_real = U[:, 1000:2000]
 # --- End of Placeholders ---
 
 
 # --- 2. Load System Matrices and Infer Dimensions ---
 println("Loading system matrices from ./ABC.jld2...")
-global A::Matrix{T}, B::Matrix{T} # Ensure type stability
-try
-    # Use JLD2.load (corrected function name)
-    AB_data = JLD2.load("./ABC.jld2")
-    if !haskey(AB_data, "A") || !haskey(AB_data, "B")
-        error("File ./ABC.jld2 must contain variables named 'A' and 'B'.")
-    end
-    global A = T.(AB_data["A"]) # Ensure type T
-    global B = T.(AB_data["B"]) # Ensure type T
-catch e
-    error("Failed to load or access data from ./ABC.jld2. Error: $e")
+
+# Use JLD2.load (corrected function name)
+AB_data = JLD2.load("./ABC.jld2")
+if !haskey(AB_data, "A") || !haskey(AB_data, "B")
+    error("File ./ABC.jld2 must contain variables named 'A' and 'B'.")
 end
+A = T.(AB_data["A"])
+B = T.(AB_data["B"])
+mean_vec = T.(AB_data["mean_vec"])
+
+z_history_real .-= mean_vec
 
 # --- Infer Dimensions from loaded matrices ---
 const N = size(A, 1) # Inferred state dimension (lifted state z)
@@ -223,15 +222,19 @@ phys_inputs = Matrix{T}(undef, m_phys, sim_steps)
 println("Initializing state and input history from data...")
 try
     global initial_state_z0, initial_input_history # Make available outside try block
-    initial_state_z0, initial_input_history = initialize_system_state_and_history(
-        z_history_real,
-        u_phys_history_real,
-        nu_init,
-        N,
-        m_phys
-    )
+    # initial_state_z0, initial_input_history = initialize_system_state_and_history(
+    #     z_history_real,
+    #     u_phys_history_real,
+    #     nu_init,
+    #     N,
+    #     m_phys
+    # )
+    initial_state_z0 = create_delay_state(z_history_real, u_phys_history_real, ny_init)
+    initial_input_history = u_phys_history_real
+
     states[:, 1] = initial_state_z0
     # Make a mutable copy for the simulation loop to update
+    #
     global input_history = copy(initial_input_history)
 
     log_state_val = (N > 0) ? round(states[1, 1], digits=3) : "N/A (N=0)"
@@ -356,6 +359,10 @@ end
 
 # --- 8. Plotting ---
 # (Modified slightly to handle potential plotting issues if GLMakie not fully working)
+
+# apply mean_vec to create real_states
+real_states = states .+ mean_vec
+
 println("Preparing plots...")
 try
     fig = Figure(size=(800, 700))
@@ -363,7 +370,7 @@ try
     # State Plot
     ax_state = Axis(fig[1, 1], title="State Trajectory (Element 1, N=$N)", xlabel="Time step k", ylabel="z₁(k)")
     if N > 0
-        lines!(ax_state, 0:sim_steps, states[1, :], label="State z₁")
+        lines!(ax_state, 0:sim_steps, real_states[1, :], label="State z₁")
         hlines!(ax_state, [target_state_val], color=:red, linestyle=:dash, label="Target")
     else
         text!(ax_state, "State dimension N=0,\ncannot plot state trajectory.", position=(sim_steps / 2, 0), align=(:center, :center))

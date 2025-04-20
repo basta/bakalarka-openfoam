@@ -409,7 +409,7 @@ end
 
 
 # --- Configuration ---
-const DATA_PATH = "./data/dataset-live-fast2.jld2" # Adjust path if needed
+const DATA_PATH = "./data/dataset-live-fast.jld2" # Adjust path if needed
 const DELAY = 200       # Number of delay steps for states and inputs
 const START_IDX = 1000 # Starting index for simulation comparison
 const SIM_LEN = 700     # Default length of the simulation
@@ -449,5 +449,5 @@ function main()
     plot_comparison(actual_data, states_abc, states_orig, PLOT_STATE_IDX, sim_start_time, sim_len, DELAY)
 
     println("Script finished.")
-    jldsave("ABC.jld2", A=A_full, B=B_full, delay=DELAY)
+    jldsave("ABC.jld2", A=A_full, B=B_full, delay=DELAY, mean_vec=mean_X_vec)
 end
