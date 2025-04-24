@@ -45,7 +45,7 @@ timePrecision   6;
 // --- Socket Communication Settings ---
 serverIP        "127.0.0.1";      // IP address of the external program (e.g., Julia)
 serverPort      8080;           // Port the external program is listening on
-controlInterval 1.0;            // Time interval (in simulation seconds) between communications
+controlInterval 5.0;            // Time interval (in simulation seconds) between communications
 // -----------------------------------
 
 wallHeatFluxPatches (hotEnd coldEnd);

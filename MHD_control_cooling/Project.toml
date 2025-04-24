@@ -4,6 +4,7 @@ authors = ["basta <jsembasta@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
 BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
 BlackBoxOptim = "a134a8b2-14d6-55f6-9291-3336d3ab0209"
 BlockArrays = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
@@ -42,14 +43,17 @@ ProgressLogging = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Wandb = "ad70616a-06c9-5745-b1f1-6a5f42545108"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 cuDNN = "02a925ec-e4fe-4b08-9a7e-0d78e3d38ccd"
 
 [compat]
+ArgParse = "1.2.0"
 BlockArrays = "1.4.0"
 JuMP = "1.25.0"
 OSQP = "0.8.1"
 Pluto = "0.20.4"
 ProgressMeter = "1.10.2"
+Test = "1.11.0"
 Zygote = "0.7.4"

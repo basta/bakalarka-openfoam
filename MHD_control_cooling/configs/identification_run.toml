@@ -1,0 +1,21 @@
+[simulation]
+# Simulation settings remain important
+port = 8080
+case_dir = "../new-sim/" # Path to your OpenFOAM case
+
+[logging]
+# Configure logging for this specific run
+log_dir = "experiment_runs"
+base_filename = "identification_run1" # Specific name for this run's logs
+log_state_detail = true               # Log temperature/flux summaries if desired
+log_state_interval = 1.0              # Log state every 1 simulation second
+
+[controller]
+# --- Specify the Identification Controller ---
+type = "Identification"
+
+# --- Parameters for IdentificationController ---
+# Optional: Time (in simulation seconds) to wait before starting the random signal.
+# Output will be zeros during this period.
+# The initialize_controller function looks for this directly under [controller].
+T_stabilize = 50.0 # Example: Wait 50 seconds before applying random inputs

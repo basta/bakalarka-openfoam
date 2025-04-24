@@ -32,7 +32,7 @@ elMagData = create_trees("./data/forceFields")
 CASE_DIR = "../new-sim/"
 TRANS_FUN = example2magman
 
-export CASE_DIR, TRANS_FUN, run_sim, real_force_generator
+export CASE_DIR, TRANS_FUN, run_sim, real_force_generator, calculate_force_fields
 
 
 function evaluate_criterium(time_path::String, cell_indexes::Vector{Int64})::Float64
@@ -103,6 +103,14 @@ function real_force_generator(θ, per_partes_out=false)
         x_mg = MHD_control_cooling.TRANS_FUN(x)
         return get_force_at_point(elMagData, x_mg, θ, per_partes_out)
     end
+end
+
+function calculate_force_fields(inputs::AbstractVector, centers_matrix::AbstractMatrix)
+    force_func = real_force_generator(inputs)
+    # Apply the force function to each column (cell center)
+    # Ensure dimensions match if needed
+    forces = [force_func(cell) for cell in eachcol(centers_matrix)]
+    return forces # Should return Vector{Vector{Float64}}
 end
 
 

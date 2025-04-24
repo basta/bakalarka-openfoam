@@ -30,10 +30,10 @@ Loads X and U data, preprocesses U.
 function load_and_preprocess_data(data_path::String)
     println("Loading data from $data_path...")
     try
-        X_data = jldopen(data_path, "r")["dataset"][2]
-        X_data = X_data[end:end, :] #TODO Remove, only selects heat flow
+        X_data = jldopen(data_path, "r")["X_data"]
+        X_data = X_data[RELEVANT_STATES, 2:end]
 
-        U_data = jldopen(data_path, "r")["dataset"][1]
+        U_data = jldopen(data_path, "r")["U_data"]
 
         println("Preprocessing U data...")
         U = let
@@ -214,7 +214,7 @@ function create_abc_system_from_data(data_path::String, delay::Int)
     return A_full, B_full, As, Bs, M, vec(mean_X), N_X, N_U, X_data, U, TOTAL_SAMPLES
 end
 
-# --- Simulation and Plotting Functions ---
+# --- Simulation and  Reshape Functions ---
 
 """
 Simulates the ABC model (augmented state-space).
@@ -409,11 +409,12 @@ end
 
 
 # --- Configuration ---
-const DATA_PATH = "./data/dataset-live-fast.jld2" # Adjust path if needed
-const DELAY = 200       # Number of delay steps for states and inputs
+const DATA_PATH = "./data.jld2" # Adjust path if needed
+const DELAY = 100       # Number of delay steps for states and inputs
 const START_IDX = 1000 # Starting index for simulation comparison
 const SIM_LEN = 700     # Default length of the simulation
 const PLOT_STATE_IDX = 1 # Which state component to plot
+const RELEVANT_STATES = [6] # Relevant states for analysis
 
 # --- Main Execution ---
 function main()

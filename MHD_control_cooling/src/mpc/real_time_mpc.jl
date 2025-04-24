@@ -48,49 +48,6 @@ function from DenseMPCLib.
 - `u_phys_k::Vector{T}`: The computed optimal physical control input vector (dimension `controller.m_phys`).
                         Returns zeros if the QP solver fails.
 - `status`: The termination status of the QP solver (e.g., `JuMP.OPTIMAL`).
-
-# Example Usage (Conceptual)
-```julia
-# --- Offline Setup ---
-# include("dmd_lib.jl")
-# include("mpc_lib.jl")
-# using .DenseMPCLib
-#
-# # Load A, B, mean_vec etc. from JLD2 file
-# AB_data = JLD2.load("ABC.jld2")
-# A_full = AB_data["A"]
-# B_full = AB_data["B"]
-# mean_vec = AB_data["mean_vec"]
-# DELAY = AB_data["delay"]
-# N_X = size(mean_vec, 1) # Infer N_X
-# N_U = ... # Determine N_U based on B_full size and DELAY
-# m_phys = ... # Define physical input dimension
-#
-# # Define MPC costs (Q_vec, R_vec, etc.) and constraints (E_vec, F_vec, etc.)
-# Np = 5
-# Q_vec = ...; R_vec = ...; q_vec = ...; r_vec = ...
-# E_vec = ...; F_vec = ...; b_vec = ...
-#
-# # Setup the controller (this is the expensive part)
-# controller = setup_dense_mpc(A_full, B_full, Np, Q_vec, R_vec, q_vec, r_vec, E_vec, F_vec, b_vec, m_phys)
-#
-# --- Online Loop ---
-# while simulation_running
-#     # Get current_state_unnormalized from simulation (needs correct structure)
-#     current_state_unnormalized = get_latest_state_from_sim()
-#
-#     # Compute control input
-#     u_phys_next, status = get_control_input(controller, current_state_unnormalized, mean_vec, N_X, N_U, DELAY)
-#
-#     if status != JuMP.OPTIMAL && status != JuMP.ALMOST_OPTIMAL
-#         println("Warning: MPC solve failed with status: \$status")
-#         # Handle failure (e.g., use previous input, zero input)
-#     end
-#
-#     # Apply u_phys_next to the simulation
-#     apply_control_to_sim(u_phys_next)
-# end
-```
 """
 function get_control_input(
     controller::DenseMPCController,

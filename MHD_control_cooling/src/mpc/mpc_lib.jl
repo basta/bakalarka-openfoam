@@ -239,22 +239,21 @@ function compute_control_action(
     status = termination_status(controller.qp_model)
 
     # --- Get control input ---
-    u_phys_k = zeros(T, controller.m_phys) # Default to zero input
+    u_prime_optimal_k0 = zeros(T, controller.m) # Initialize model input u'_0 (size N_U = 16)
     if status == JuMP.OPTIMAL || status == JuMP.ALMOST_OPTIMAL
         U_optimal = value.(controller.U_var)
-        # Extract the physical input for the current step
-        u_phys_k .= U_optimal[1:controller.m_phys]
-        # elseif status == TIME_LIMIT
-        #     @warn "MPC QP solve time limit likely reached. Status: $status."
-        # Fall through to return zero input or potentially last known good input
+        # Extract the *model* input for the current step (first m elements of U_optimal)
+        u_prime_optimal_k0 .= U_optimal[1:controller.m] # <--- MODIFIED: Get full u'_0 (size m=N_U=16)
     else
-        @warn "MPC QP solve failed. Status: $status. Applying zero input."
+        @warn "MPC QP solve failed. Status: $status. Returning zero model input."
+        # u_prime_optimal_k0 remains zeros
     end
 
-    # Note: Clamping might still be needed depending on solver tolerance vs actual limits
-    # u_phys_k .= clamp.(u_phys_k, -u_phys_max, u_phys_max) # u_phys_max not stored in struct, would need to be passed or stored
+    # Note: No clamping applied here, as this is the model input u'.
+    # Clamping should happen on the physical u_e, u_m after projection if needed.
 
-    return u_phys_k, status
+    @info "mpc_lib returning optimal model input u'_0 size $(size(u_prime_optimal_k0))" # Modified log
+    return u_prime_optimal_k0, status # <--- MODIFIED: Return u'_0 and status
 end
 
 
