@@ -224,7 +224,7 @@ R = Diagonal(0.1 * ones(nu_loaded)) # Example: Penalize all inputs equally
 
 # Ensure xref has length nx
 xref = zeros(nx_loaded)
-xref[1] = +1e7 # Set reference for the first state
+xref[1] = -1e6 # Set reference for the first state
 
 # Ensure constraints match nu
 umin = -5.0 * ones(nu_loaded)
