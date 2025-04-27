@@ -91,6 +91,11 @@ function delay_embed(data::AbstractMatrix, delay::Int)
     return embedded_data
 end
 
+function input_lift(U::AbstractMatrix)
+    U_lifted = U
+    return U_lifted
+end
+
 """
 Calculates DMDc matrices (As, Bs, M) from data.
 """
@@ -108,6 +113,8 @@ function calculate_dmdc_matrices(X_data::AbstractMatrix, U::AbstractMatrix, dela
         error("Not enough data points to create DMDc model with delay $max_delay and data size $TOTAL_SAMPLES")
     end
 
+    U = input_lift(U)
+
     X_current = X_data[:, start_idx_curr:end_idx_curr]
     X_delayed = delay_embed(X_data[:, start_idx_hist:end_idx_hist], max_delay)
     U_delayed = delay_embed(U[:, start_idx_hist:end_idx_hist], max_delay)
@@ -121,9 +128,16 @@ function calculate_dmdc_matrices(X_data::AbstractMatrix, U::AbstractMatrix, dela
     X_next_dmd = X_current[:, 1:common_len]
     X_embed_dmd = X_delayed[:, 1:common_len]
     U_embed_dmd = U_delayed[:, 1:common_len]
+    #==== LIFITING HERE ====#
+    U_embed_dmd = abs.(U_embed_dmd)
 
     # Center X data
-    mean_X = mean(X_data, dims=2)
+    local mean_X
+    if NORMALIZE
+        mean_X = mean(X_data, dims=2)
+    else
+        mean_X = zeros(size(X_data, 1), 1)
+    end
     X_next_centered = X_next_dmd .- mean_X
     X_embed_centered = X_embed_dmd .- repeat(mean_X, max_delay + 1, 1)
 
@@ -415,6 +429,7 @@ const START_IDX = 1000 # Starting index for simulation comparison
 const SIM_LEN = 700     # Default length of the simulation
 const PLOT_STATE_IDX = 1 # Which state component to plot
 const RELEVANT_STATES = [6] # Relevant states for analysis
+const NORMALIZE = false
 
 # --- Main Execution ---
 function main()
