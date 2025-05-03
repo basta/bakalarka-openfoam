@@ -424,8 +424,8 @@ end
 
 # --- Configuration ---
 const DATA_PATH = "./data.jld2" # Adjust path if needed
-const DELAY = 100       # Number of delay steps for states and inputs
-const START_IDX = 1000 # Starting index for simulation comparison
+const DELAY = 30       # Number of delay steps for states and inputs
+const START_IDX = 800   # Starting index for simulation comparison
 const SIM_LEN = 700     # Default length of the simulation
 const PLOT_STATE_IDX = 1 # Which state component to plot
 const RELEVANT_STATES = [6] # Relevant states for analysis

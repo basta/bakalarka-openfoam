@@ -1,0 +1,30 @@
+# Example: configs/blackbox_online_config.toml
+
+[simulation]
+case_dir = "../new-sim/"
+port = 8080
+# ...
+
+[logging]
+log_dir = "experiment_runs/bbo_online"
+base_filename = "bbo_online_run"
+log_state_detail = true
+log_state_interval = 1.0               # Log state frequently enough to capture end-of-interval state
+
+[controller]
+type = "BlackBoxOnline" # Match the struct name
+
+[controller.params.BlackBoxOnline]
+num_inputs = 8
+T_eval = 150.0 # <<< How long (sim seconds) to evaluate each candidate input
+
+SearchRange = [-2, 2] # --- Mandatory BBO Setting ---
+
+# --- Optional BBO Settings ---
+Method = "adaptive_de_rand_1_bin_radiuslimited"
+MaxSteps = 200                                  # <<< Max number of candidates to evaluate (ask/tell cycles)
+# PopulationSize = 50 # May be needed depending on method
+
+# --- Criterion Calculation ---
+# Currently hardcoded to default_end_period_criterion in the controller.
+# Future enhancement: specify function name or parameters here.

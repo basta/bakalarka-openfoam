@@ -43,7 +43,7 @@ function compute_control_action(controller::IdentificationController, time::Floa
             # @info "[$(typeof(controller))] Time $time < T_stabilize $(controller.T_stabilize). Outputting zeros."
         else
             # Generate random values, e.g., in [-1.5, 1.5]
-            controller.last_output = (rand(controller.num_inputs) .- 0.5) .* 3.0
+            controller.last_output = (rand(controller.num_inputs) .- 0.) .* 1.
             # @info "[$(typeof(controller))] Time $time >= T_stabilize $(controller.T_stabilize). New random output: $(round.(controller.last_output, digits=3))"
         end
     end
