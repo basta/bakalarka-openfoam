@@ -146,6 +146,7 @@ end
 output_filename = "data.jld2"
 println("\nSaving data to $output_filename in the current directory...")
 # Save the data to a JLD2 file in the current working directory
+X_data ./= 1e6
 jldsave(output_filename; X_data, U_data)
 
 println("Processing complete. Data saved to $output_filename.")

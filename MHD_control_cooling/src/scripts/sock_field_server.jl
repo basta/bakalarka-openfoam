@@ -25,6 +25,7 @@ try
     include("../controllers/mpc_dmdc.jl") # Defines DMDC_MPCController
     include("../controllers/mpc_dense.jl")
     include("../controllers/blackbox_online.jl")
+    include("../controllers/mpc_alter.jl")
 catch e
     @error "Failed to include necessary project files. Ensure paths are correct relative to script location." exception = (e, catch_backtrace())
     exit(1)
@@ -150,13 +151,21 @@ function initialize_controller()
         elseif controller_type == "DMDC_MPC" # Assuming this is different from dense MPC
             current_controller = DMDC_MPCController(config) # Keep if needed
 
-        elseif controller_type == "DenseMPC" # Added case
+        elseif controller_type == "DenseMPC"
             # The constructor now takes the whole config dictionary
             current_controller = DenseMPCController(config)
 
-        elseif controller_type == "BlackBoxOnline" # Added case
+        elseif controller_type == "BlackBoxOnline"
             # The constructor now takes the whole config dictionary
             current_controller = BlackBoxOnlineController(config)
+
+        elseif controller_type == "AlternatingMPC"
+            # The constructor now takes the whole config dictionary
+            current_controller = AlternatingMPCController(config)
+
+        elseif controller_type == "BlackBoxOffline"
+            # The constructor now takes the whole config dictionary
+            current_controller = BlackBoxOfflineController(config)
 
         else
             error("Unsupported controller type specified in configuration: '$controller_type'")

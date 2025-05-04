@@ -204,7 +204,6 @@ function DenseMPCController(config::Dict)
         @warn "Loaded B matrix has nu=$(nu) columns, but expected 16 based on outer product plan. Proceeding, but check model/config."
     end
 
-    # **** ADDED: Get number of input delays from config ****
     # **** CRITICAL: Ensure this parameter exists in your config file! ****
     input_delays = get(mpc_params, "input_delays", -1) # Default to -1 to force error if missing
     if input_delays < 0
@@ -291,6 +290,7 @@ function compute_control_action(controller::DenseMPCController, time::Float64, s
         measurement_val = isa(system_state[measurement_key], AbstractVector) ?
                           system_state[measurement_key][1] :
                           system_state[measurement_key]
+        measurement_val
 
         if length(mean_vec) >= 1
              yk_centered = Float64(measurement_val) - mean_vec[1]
@@ -305,6 +305,7 @@ function compute_control_action(controller::DenseMPCController, time::Float64, s
         @error "Missing measurement key '$measurement_key' in system_state."
         return zeros(8) # Return safe physical input
     end
+    yk_centered = yk_centered / 1e6
     xk[1] = yk_centered # y_k
 
     # 2. Past outputs: y_{k-1} down to y_{k-dy+1}

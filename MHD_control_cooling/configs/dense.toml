@@ -3,7 +3,7 @@
 [simulation]
 # ... other simulation settings like port, case_dir ...
 port = 8080
-case_dir = "../new-sim/" # Path relative to where sock_field_server.jl is run
+case_dir = "../cyl/" # Path relative to where sock_field_server.jl is run
 
 [logging]
 # ... logging settings ...
@@ -51,27 +51,10 @@ R_diag = [
     0.1,
 ] # Length 16
 
-x0ref = -1.2e6
+x0ref = -1.8
 
 # Input constraints (length nu = 16)
-umin = [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-] # Length 16
+umin = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # Length 16
 umax = [
     1.0,
     1.0,
@@ -97,7 +80,7 @@ umax = [
 # xmin = [-Inf]
 # xmax = [ Inf]
 
-input_delays = 30
+input_delays = 60
 
 # --- Critical: State Mapping ---
 # Set this list to the indices matching the RELEVANT_STATES used for ABC.jld2

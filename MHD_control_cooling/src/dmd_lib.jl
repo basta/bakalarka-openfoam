@@ -424,8 +424,8 @@ end
 
 # --- Configuration ---
 const DATA_PATH = "./data.jld2" # Adjust path if needed
-const DELAY = 30       # Number of delay steps for states and inputs
-const START_IDX = 800   # Starting index for simulation comparison
+const DELAY = 60       # Number of delay steps for states and inputs
+const START_IDX = 2000   # Starting index for simulation comparison
 const SIM_LEN = 700     # Default length of the simulation
 const PLOT_STATE_IDX = 1 # Which state component to plot
 const RELEVANT_STATES = [6] # Relevant states for analysis
@@ -465,5 +465,16 @@ function main()
     plot_comparison(actual_data, states_abc, states_orig, PLOT_STATE_IDX, sim_start_time, sim_len, DELAY)
 
     println("Script finished.")
-    jldsave("ABC.jld2", A=A_full, B=B_full, delay=DELAY, mean_vec=mean_X_vec)
+    jldsave("ABC.jld2",
+            A=A_full,
+            B=B_full,
+            delay=DELAY,
+            mean_vec=mean_X_vec,
+            M_dmdc=M_dmdc,  # Add the M matrix
+            N_X=N_X,        # Add the number of states
+            N_U=N_U,         # Add the number of inputs
+            TOTAL_SAMPLES=TOTAL_SAMPLES,
+            RELEVANT_STATES=RELEVANT_STATES # Add the relevant state indices
+           )
+
 end
