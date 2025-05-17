@@ -293,6 +293,8 @@ function AlternatingMPCController(config::Dict)
     local Q_diag
     if isnothing(Q_diag_override)
         Q_diag = ones(nx) * Q_base
+        # TODO Override
+        Q_diag[1] = Q_base
     else
         Q_diag = Float64.(Q_diag_override)
     end
@@ -382,7 +384,7 @@ function compute_control_action(controller::AlternatingMPCController, time::Floa
     du = controller.input_delays
     dy = nx - nu * du
 
-    # --- State Reconstruction (Unchanged) ---
+    # --- State Reconstruction ---
     prev_xk = controller.last_xk === nothing ? zeros(nx) : controller.last_xk
     prev_theta = controller.last_uk === nothing ? zeros(nu) : controller.last_uk
     xk = zeros(nx)
@@ -462,7 +464,7 @@ function compute_control_action(controller::AlternatingMPCController, time::Floa
     # ... (debug prints for bounds if needed) ...
 
     # --- Initialize U and V for AM (Unchanged) ---
-    init_val = 0.5
+    init_val = 0.01
     warm_start_threshold = 1e-6
     if controller.last_U_opt !== nothing && length(controller.last_U_opt) == m * Nc && norm(controller.last_U_opt) > warm_start_threshold
         U_current = [controller.last_U_opt[m+1 : m*Nc]; zeros(m)]
@@ -477,12 +479,15 @@ function compute_control_action(controller::AlternatingMPCController, time::Floa
 
     # --- Alternating Minimization Loop ---
     solve_success = true
-    qp_regularization = 1e-4 # Start with a moderate value for Ipopt
-    @info "Using QP Regularization: $qp_regularization"
+    qp_regularization = 1e-4
 
     # Pre-allocate sparse identity matrices
     I_u_bounds_template = sparse(I, num_u_phys_cons, m * Nc)
     I_v_bounds_template = sparse(I, num_v_phys_cons, n * Nc)
+
+    local U_current_final, V_current_final
+    U_current_final = copy(U_current) # Keep track of the final U
+    V_current_final = copy(V_current) # Keep track of the final V
 
 
     for iter = 1:N_iter_am
@@ -575,7 +580,6 @@ function compute_control_action(controller::AlternatingMPCController, time::Floa
 
         try
             M_U = build_M_U(U_current, Nc, m, n)
-            # REMOVED: Check for near-zero U_current / M_U
             #  if norm(U_current) < 1e-9 || norm(M_U) < 1e-9
             #      @warn "AM Iter $iter: U_current or M_U matrix is near zero. Skipping V optimization."
             #  else
@@ -647,12 +651,71 @@ function compute_control_action(controller::AlternatingMPCController, time::Floa
              break
         end
 
-        # Optional: Check for convergence?
-        # ...
-
+        U_current_final = copy(U_current)
+        V_current_final = copy(V_current)
     end # End AM loop
 
-    # --- Extract Final Control Action (Unchanged) ---
+    # --- >>> START: Calculate Expected Trajectory <<< ---
+    local predicted_states::Matrix{Float64} # Define type for clarity
+    if solve_success
+        @info "AM converged. Calculating predicted trajectory."
+
+        # 1. Reconstruct the optimal Theta sequence from final U and V
+        Theta_opt = zeros(Float64, nu * Nc)
+        for i = 1:Nc
+            # Extract u_i and v_i for time step k+i-1
+            u_i_idx = (i-1)*m+1 : i*m
+            v_i_idx = (i-1)*n+1 : i*n
+
+            # Ensure indices are within bounds (safety check)
+            if maximum(u_i_idx) > length(U_current_final) || maximum(v_i_idx) > length(V_current_final)
+                 @error "Index out of bounds during Theta_opt reconstruction. i=$i, Nc=$Nc"
+                 # Handle error appropriately, maybe set solve_success = false?
+                 solve_success = false
+                 break # Exit the Theta_opt calculation
+            end
+
+            u_i = U_current_final[u_i_idx]
+            v_i = V_current_final[v_i_idx]
+
+            # Calculate theta_i = vec(u_i * v_i')
+            theta_i = vec(u_i * v_i')
+
+            # Place it in the stacked vector
+            theta_opt_idx = (i-1)*nu+1 : i*nu
+            if maximum(theta_opt_idx) > length(Theta_opt)
+                 @error "Index out of bounds for Theta_opt placement. i=$i, Nc=$Nc"
+                 solve_success = false
+                 break
+            end
+            Theta_opt[theta_opt_idx] = theta_i
+        end
+
+        if solve_success # Recalculate only if Theta_opt was built successfully
+             # 2. Calculate the stacked predicted state vector
+             X_pred_stacked = Sx * xk + Su * Theta_opt # Use mpc_data.Sx and mpc_data.Su
+
+             # 3. Reshape into a matrix (nx rows, Np columns)
+             # Each column is a predicted state x_{k+i|k}
+             predicted_states = reshape(X_pred_stacked, nx, Np)
+
+             # 4. Log or store the result
+             # Example: Log the norm and the first predicted state vector
+             @info "Predicted Trajectory (norm): $(round(norm(predicted_states), digits=4))"
+             @info "Predicted x_{k+1|k} (first 5): $(round.(predicted_states[1:min(5, nx), 1], digits=4))"
+             @info "Predicted x_{k+Np|k} (first 5): $(round.(predicted_states[1:min(5, nx), Np], digits=4))"
+
+             # --- TODO: Store predicted_states if needed for external analysis ---
+             # Option 1: Add a field to the controller struct
+             # controller.last_predicted_trajectory = predicted_states
+             # Option 2: Return it along with the control action (requires changing the function signature and caller)
+             # return physical_input, predicted_states
+        end
+    end
+    # --- >>> END: Calculate Expected Trajectory <<< ---
+
+
+    # --- Extract Final Control Action ---
     if !solve_success
         @error "Alternating minimization failed to converge or encountered an error. Returning zero input."
         controller.last_xk = xk

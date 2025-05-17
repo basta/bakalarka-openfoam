@@ -27,7 +27,7 @@ config = Dict(
                              # Q[1,1] might be implicitly higher if xref focuses on x[1]
                 "R_diag" => fill(0.1, 16), # Weight for control input theta (16 elements)
                 "x0ref" => reference, # Base value for reference state (see below)
-                "input_delays" => 100,
+                "input_delays" => 60,
 
                 # --- Constraints on theta ---
                 "umin" => fill(-1.5, 16), # Lower bound for theta

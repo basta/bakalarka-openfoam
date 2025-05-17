@@ -19,7 +19,7 @@ Computes the control action based on the current time and system state.
 # Returns
 - `Vector{Float64}`: The computed control input vector (e.g., 8 actuator values).
 """
-function compute_control_action(controller::AbstractController, time::Float64, state::Dict{Symbol, Any})
+function compute_control_action(controller::AbstractController, time::Float64, state::Dict{Symbol,Any})
     # Ensure concrete subtypes implement this method
     error("compute_control_action not implemented for controller type $(typeof(controller))")
 end
@@ -38,19 +38,18 @@ Useful for controllers with internal states like observers, filters, or integral
 # Returns
 - `nothing`
 """
-function update_controller_state!(controller::AbstractController, time::Float64, new_state_data::Dict{Symbol, Any})
+function update_controller_state!(controller::AbstractController, time::Float64, new_state_data::Dict{Symbol,Any})
     # Default implementation does nothing. Controllers requiring state updates should override this.
     return nothing
 end
 
-# --- Helper/Placeholder Functions (Potentially move to a dedicated utils file) ---
 
 """
 Placeholder function for state estimation.
 This needs to be implemented based on how you process raw temperature/flux data
 into a state vector suitable for your controller model.
 """
-function estimate_state(state_data::Dict{Symbol, Any})
+function estimate_state(state_data::Dict{Symbol,Any})
     # Highly simplified example: Use average temperature and total flux
     # Replace this with your actual state estimation logic (e.g., using specific sensor points, POD modes, etc.)
     temp_data = get(state_data, :temperature, Float32[])

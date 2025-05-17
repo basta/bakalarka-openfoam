@@ -206,7 +206,6 @@ int main(int argc, char *argv[])
         if (performCommunication) {
             auto force_field_data = request_field(runTime.value());
             if (!force_field_data.empty()) {
-                 // FIX: Cast F.size() to size_t for safe comparison
                  if (force_field_data.size() == static_cast<size_t>(F.size())) {
                     // Info << "Received " << force_field_data.size() << " force vectors. Updating F field." << endl; // Less verbose
                     forAll(F, cellI) {
