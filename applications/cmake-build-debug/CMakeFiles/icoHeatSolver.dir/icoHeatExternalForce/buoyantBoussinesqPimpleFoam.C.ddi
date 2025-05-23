@@ -1,0 +1,11 @@
+{
+"rules": [
+{
+"primary-output": "CMakeFiles/icoHeatSolver.dir/icoHeatExternalForce/buoyantBoussinesqPimpleFoam.C.o",
+"requires": [
+]
+}
+],
+"version": 0,
+"revision": 0
+}

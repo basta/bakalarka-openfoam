@@ -14,6 +14,11 @@ FoamFile
     object      F;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// INPUTS:
+{% for v in input_vec %}
+    // {{v}}
+{% end %}
+// Test
 
 dimensions      [0 1 -2 0 0 0 0]; // TODO I just made it into acceleration, maybe should be fixed later
 

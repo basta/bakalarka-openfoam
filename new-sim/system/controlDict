@@ -1,0 +1,106 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2406                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+FoamFile
+{
+    version         2;
+    format          ascii;
+    class           dictionary;
+    object          controlDict;
+}
+
+application     icoFoam;
+
+startFrom       startTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         1e+11;
+
+deltaT          0.002;
+
+writeControl    runTime;
+
+writeInterval   0.5;
+
+purgeWrite      0;
+
+writeFormat     ascii;
+
+writePrecision  6;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   6;
+
+// --- Socket Communication Settings ---
+serverIP        "127.0.0.1";      // IP address of the external program (e.g., Julia)
+serverPort      8080;           // Port the external program is listening on
+controlInterval 5;            // Time interval (in simulation seconds) between communications
+// -----------------------------------
+
+wallHeatFluxPatches (hotEnd coldEnd);
+
+runTimeModifiable yes; // Allows changing controlDict parameters while running
+
+// --- Time step controls ---
+adjustTimeStep  yes;        // Enable automatic adjustment
+maxCo           0.7;        // Target maximum Courant number
+maxDeltaT       0.5;        // Absolute maximum allowable time step
+// --- End Time step controls ---
+
+writeCellCentres
+{
+    type            writeCellCentres;
+    libs            ( fieldFunctionObjects );
+}
+
+functions
+{
+    // --- Function object to calculate gradient of Temperature (T) ---
+    // gradientT // This is a user-chosen name for this specific task
+    // {
+    //     type            gradient; // Specifies the 'gradient' function object
+    //     libs            ("libfieldFunctionObjects.so"); // Library containing this function object
+
+    //     field           T;        // Input field: Calculate gradient of T
+    //     result          gradT;    // Output field name: Result will be saved as 'gradT'
+    //                               // (You can choose another name like 'gradient(T)')
+
+    //     // gradientScheme  Gauss linear;
+    // }
+    hotEndHeatFlux
+    {
+        type            wallHeatFlux;
+        libs            (fieldFunctionObjects);
+        writeControl    writeTime; // Or timeStep, etc.
+        log             yes;       // Log average/integral to screen/log file
+        valueOutput     yes;       // Write the field values to time directories
+
+        patches         (hotEnd);  // Specify your patch name
+    }
+    // coldEndHeatFlux
+    // {
+    //     type            wallHeatFlux;
+    //     libs            (fieldFunctionObjects);
+    //     writeControl    writeTime; // Or timeStep, etc.
+    //     log             yes;       // Log average/integral to screen/log file
+    //     valueOutput     yes;       // Write the field values to time directories
+
+    //     patches         (coldEnd);  // Specify your patch name
+    // }
+
+
+}
+
+
+// ************************************************************************* //

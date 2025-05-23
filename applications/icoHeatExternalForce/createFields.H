@@ -49,14 +49,16 @@ volVectorField F(
         "F",
         mesh.time().timeName(),
         mesh,
-        IOobject::MUST_READ,
+        IOobject::NO_READ,
         IOobject::AUTO_WRITE
     ),
-    mesh
+    mesh,
+    dimensionedVector("zero", dimAcceleration, vector(0, 0, 0))
 );
 
 Info<< "Calcualting numerical field" <<endl;
 const volVectorField& centers = F.mesh().C();
+
 
 
 #include "createPhi.H"

@@ -2,7 +2,24 @@
 <module type="JAVA_MODULE" version="4">
   <component name="NewModuleRootManager" inherit-compiler-output="true">
     <exclude-output />
-    <content url="file://$MODULE_DIR$" />
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/MHD_control_cooling" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/new-sim" type="java-resource" />
+      <excludeFolder url="file://$MODULE_DIR$/2d-example" />
+      <excludeFolder url="file://$MODULE_DIR$/2d-example-live" />
+      <excludeFolder url="file://$MODULE_DIR$/applications" />
+      <excludeFolder url="file://$MODULE_DIR$/cases_bckup" />
+      <excludeFolder url="file://$MODULE_DIR$/freecad-mesh" />
+      <excludeFolder url="file://$MODULE_DIR$/heat-sim" />
+      <excludeFolder url="file://$MODULE_DIR$/heat-sim-H" />
+      <excludeFolder url="file://$MODULE_DIR$/heat-sim-blender" />
+      <excludeFolder url="file://$MODULE_DIR$/heat-sim-fast" />
+      <excludeFolder url="file://$MODULE_DIR$/heat-sim-freecad" />
+      <excludeFolder url="file://$MODULE_DIR$/heat-sim-heaters" />
+      <excludeFolder url="file://$MODULE_DIR$/heat-sim-heaters-newmesh" />
+      <excludeFolder url="file://$MODULE_DIR$/heat-sim-no-simple" />
+      <excludeFolder url="file://$MODULE_DIR$/jsem-blazen" />
+    </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>

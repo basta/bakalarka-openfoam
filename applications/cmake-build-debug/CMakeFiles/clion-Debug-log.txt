@@ -1,0 +1,5 @@
+/home/basta/.local/share/JetBrains/Toolbox/apps/clion/bin/cmake/linux/x64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/home/basta/.local/share/JetBrains/Toolbox/apps/clion/bin/ninja/linux/x64/ninja -G Ninja -S /home/basta/Projects/bakalarka-openfoam/applications -B /home/basta/Projects/bakalarka-openfoam/applications/cmake-build-debug
+-- OpenFOAM: /usr/lib/openfoam/openfoam2406
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/basta/Projects/bakalarka-openfoam/applications/cmake-build-debug

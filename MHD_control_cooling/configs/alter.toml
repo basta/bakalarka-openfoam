@@ -1,0 +1,94 @@
+# Example config.toml structure
+
+[simulation]
+# ... other simulation settings like port, case_dir ...
+port = 8080
+case_dir = "../cyl/" # Path relative to where sock_field_server.jl is run
+
+[logging]
+# ... logging settings ...
+log_dir = "experiment_runs"
+base_filename = "alter_mpc_run" # Helps identify logs for this specific run
+log_state_detail = true         # Example: Enable detailed state logging
+log_state_interval = 0.5
+
+[controller]
+type = "AlternatingMPC"
+
+[controller.params.AlternatingMPC]
+matrix_file = "ABC.jld2" # Path to load A (nx_aug x nx_aug) and B (nx_aug x 16)
+
+Np = 10
+Nc = 10
+
+# --- Parameters determined by the loaded A, B and RELEVANT_STATES ---
+# nx = length(RELEVANT_STATES) used for ABC.jld2
+# nu = 16 (For the MPC model itself)
+
+Q = 100
+
+# R diagonal (length nu = 16)
+R_diag = [
+    0.001,
+    0.001,
+    0.001,
+    0.001,
+    0.001,
+    0.001,
+    0.001,
+    0.001,
+    0.001,
+    0.001,
+    0.001,
+    0.001,
+    0.001,
+    0.001,
+    0.001,
+    0.001,
+] # Length 16
+
+x0ref = -1.0
+
+# Input constraints (length nu = 16)
+umin = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # Length 16
+umax = [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+] # Length 16
+
+u_phys_min = [-2.0, -2.0, -2.0, -2.0] # Vector length m
+u_phys_max = [2.0, 2.0, 2.0, 2.0]     # Vector length m
+v_phys_min = [-2.0, -2.0, -2.0, -2.0] # Vector length n
+v_phys_max = [2.0, 2.0, 2.0, 2.0]     # Vector length n
+
+# State constraints (length nx) - ADJUST LENGTH TO MATCH YOUR MODEL's nx
+# Example if nx = 4
+# Example if nx = 1
+# xmin = [-Inf]
+# xmax = [ Inf]
+
+input_delays = 60
+
+# --- Critical: State Mapping ---
+# Set this list to the indices matching the RELEVANT_STATES used for ABC.jld2
+# Example if RELEVANT_STATES = [10, 25, 50, 100] was used:
+sensor_indices = [10, 25, 50, 100]
+# Example if RELEVANT_STATES = [6] was used:
+# sensor_indices = [6]
+
+# Optional: OSQP settings
+# osqp_settings = { verbose = false, eps_abs = 1e-4 }

@@ -1,0 +1,72 @@
+# Example config.toml section for DMDC_MPCController
+
+[simulation]
+# ... other simulation settings like port, case_dir ...
+port = 8080
+case_dir = "../new-sim/" # Path relative to where sock_field_server.jl is run
+
+[logging]
+# ... logging settings ...
+log_dir = "experiment_runs"
+base_filename = "dmdc_mpc_run1" # Helps identify logs for this specific run
+log_state_detail = true         # Example: Enable detailed state logging
+log_state_interval = 0.5
+
+[controller]
+# Specify the type of controller to use
+type = "DMDC_MPC"
+
+# Optional: Common parameters used by multiple controller types could go here
+# T_stabilize = 50.0 # (Not used by DMDC_MPCController directly)
+
+# Nested table for parameters specific to the DMDC_MPC type
+[controller.params.DMDC_MPC]
+# --- Core MPC Parameters ---
+Np = 10     # Prediction Horizon (number of steps)
+m_phys = 16 # Dimension of the physical control input vector (e.g., your 8 actuator values)
+
+# --- System Identification / Model Loading ---
+# Path to the JLD2 file containing raw data (X_data, U_data) used for DMDc identification
+# Required only if `load_abc = false`.
+data_path = "./data/dataset-live-fast.jld2"
+
+# Path to the JLD2 file where the computed A_full, B_full, mean_vec, and delay are saved/loaded from.
+abc_path = "./ABC.jld2"
+
+# Set to true to load A/B/mean/delay from `abc_path`. Set to false to recompute DMDc from `data_path`.
+load_abc = true
+
+# Delay steps used in the DMDc model. Required if `load_abc = false`.
+# If `load_abc = true`, the value from the loaded file takes precedence.
+delay = 10 # Example value (used only if load_abc = false)
+
+# --- Cost Function Parameters (TODO: Implement loading in constructor) ---
+# These need to be defined in a way your constructor can parse them.
+# Options:
+# 1. Paths to files containing the matrices (e.g., JLD2, CSV).
+# 2. Direct values for simple diagonal matrices.
+
+# Example using direct values (assuming simple diagonal Q/R):
+Q_state_diag_val = 1.0 # Penalty for state deviation (applied to specific states, e.g., first element)
+Q_term_diag_val = 10.0 # Terminal state penalty
+R_diag_val = 0.05      # Penalty for the augmented/preprocessed input u'
+
+
+# --- Constraint Parameters (TODO: Implement loading in constructor) ---
+# Similar options: paths or direct values.
+
+# Example using direct values for simple box constraints on augmented input u':
+# (Constraining physical u_phys directly is harder in this dense formulation)
+u_prime_max = 1.5 # Max value for elements of the augmented input u'
+
+# Example using paths:
+# E_stage_path = "constraints/E_stage.jld2"
+# F_stage_path = "constraints/F_stage.jld2"
+# b_stage_path = "constraints/b_stage.jld2"
+# E_term_path = "constraints/E_term.jld2" # Terminal constraints
+# b_term_path = "constraints/b_term.jld2"
+
+# --- Solver Settings ---
+# Optional: Pass settings to the QP solver (e.g., OSQP)
+# solver_verbose = false
+# solver_time_limit = 0.05 # Max time in seconds for the online solve
