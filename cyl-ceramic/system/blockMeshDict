@@ -1,0 +1,168 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2406                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Cylinder Dimensions
+// Diameter = 0.1 m => Radius R = 0.05 m
+// Height H = 0.01 m
+
+scale 1; // Coordinates below are in meters
+
+// Define vertices for the 5-block O-grid cylinder mesh
+// Inner square half-side length (e.g., R/2 = 0.025)
+vertices
+(
+    // Bottom plane (z=0)
+    // Inner square corners
+    ( 0.025  0.025 0)       // v0: NE inner
+    (-0.025  0.025 0)       // v1: NW inner
+    (-0.025 -0.025 0)       // v2: SW inner
+    ( 0.025 -0.025 0)       // v3: SE inner
+    // Outer circle cardinal points
+    ( 0.05   0     0)       // v4: E outer
+    ( 0      0.05  0)       // v5: N outer
+    (-0.05   0     0)       // v6: W outer
+    ( 0     -0.05  0)       // v7: S outer
+
+    // Top plane (z=0.01) - corresponding vertices
+    ( 0.025  0.025 0.01)    // v8: NE inner Top
+    (-0.025  0.025 0.01)    // v9: NW inner Top
+    (-0.025 -0.025 0.01)    // v10: SW inner Top
+    ( 0.025 -0.025 0.01)    // v11: SE inner Top
+    ( 0.05   0     0.01)    // v12: E outer Top
+    ( 0      0.05  0.01)    // v13: N outer Top
+    (-0.05   0     0.01)    // v14: W outer Top
+    ( 0     -0.05  0.01)    // v15: S outer Top
+);
+
+// Define the curved edges using arcs
+// Format: arc <start_vertex> <end_vertex> (interpolation_point_coords)
+edges
+(
+    // Outer arcs - Bottom (z=0)
+    arc 4  5  (0.0353553  0.0353553 0)    // Arc E-N
+    arc 5  6  (-0.0353553  0.0353553 0)   // Arc N-W
+    arc 6  7  (-0.0353553 -0.0353553 0)  // Arc W-S
+    arc 7  4  (0.0353553 -0.0353553 0)   // Arc S-E
+
+    // Outer arcs - Top (z=0.01)
+    arc 12 13 (0.0353553  0.0353553 0.01) // Arc E-N Top
+    arc 13 14 (-0.0353553  0.0353553 0.01)// Arc N-W Top
+    arc 14 15 (-0.0353553 -0.0353553 0.01)// Arc W-S Top
+    arc 15 12 (0.0353553 -0.0353553 0.01)// Arc S-E Top
+);
+
+// Define the blocks (5 blocks for O-grid)
+// Cell counts: Center block nx=10, ny=10. Outer blocks nr=5 (radial), nc=10 (circumferential). nz=1 (axial).
+blocks
+(
+    // Central square block (Block 0)
+    // Vertices: (0 1 2 3 8 9 10 11)
+    // Local x: 0->1, y: 1->2, z: 0->8
+    hex (0 1 2 3 8 9 10 11) (10 10 1) simpleGrading (1 1 1)
+
+    // Outer blocks (mapping square faces to circle sectors)
+    // Revised vertex ordering for right-hand rule and connectivity
+    // Local x: radial, y: circumferential, z: axial
+
+    // Block East (Block 1): Connects inner face (3 0 8 11) to outer arc (4 5 13 12)
+    // Vertices: (Bottom Inner SE, Bottom Outer E, Bottom Outer N, Bottom Inner NE) -> Top
+    hex (3 4 5 0 11 12 13 8) (5 10 1) simpleGrading (1 1 1) // x=5 (radial), y=10 (circum)
+
+    // Block North (Block 2): Connects inner face (0 1 9 8) to outer arc (5 6 14 13)
+    // Vertices: (Bottom Inner NE, Bottom Outer N, Bottom Outer W, Bottom Inner NW) -> Top
+    hex (0 5 6 1 8 13 14 9) (5 10 1) simpleGrading (1 1 1) // x=5 (radial), y=10 (circum)
+
+    // Block West (Block 3): Connects inner face (1 2 10 9) to outer arc (6 7 15 14)
+    // Vertices: (Bottom Inner NW, Bottom Outer W, Bottom Outer S, Bottom Inner SW) -> Top
+    hex (1 6 7 2 9 14 15 10) (5 10 1) simpleGrading (1 1 1) // x=5 (radial), y=10 (circum)
+
+    // Block South (Block 4): Connects inner face (2 3 11 10) to outer arc (7 4 12 15)
+    // Vertices: (Bottom Inner SW, Bottom Outer S, Bottom Outer E, Bottom Inner SE) -> Top
+    hex (2 7 4 3 10 15 12 11) (5 10 1) simpleGrading (1 1 1) // x=5 (radial), y=10 (circum)
+);
+
+// Define the boundary patches (using only vertices 0-15)
+// Updated face definitions to match new block vertex ordering
+boundary
+(
+    // Outer curved wall
+    cylinderWall
+    {
+        type wall;
+        faces
+        (
+            // Outer faces of blocks 1, 2, 3, 4. Order for outward normal.
+            (4 5 13 12)     // Outer face of East block (Block 1)
+            (5 6 14 13)     // Outer face of North block (Block 2)
+            (6 7 15 14)     // Outer face of West block (Block 3)
+            (7 4 12 15)     // Outer face of South block (Block 4)
+        );
+    }
+
+    // Bottom flat face (z=0)
+    wallBottom
+    {
+        type wall;
+        faces
+        (
+            // Bottom faces of all 5 blocks
+            (0 1 2 3)       // Center block bottom (Block 0)
+            (3 4 5 0)       // East block bottom (Block 1)
+            (0 5 6 1)       // North block bottom (Block 2)
+            (1 6 7 2)       // West block bottom (Block 3)
+            (2 7 4 3)       // South block bottom (Block 4)
+        );
+    }
+
+    // Top flat face (z=H)
+    wallTop
+    {
+        type wall;
+        faces
+        (
+            // Top faces of all 5 blocks. Order for outward normal (viewed from outside).
+            (8 9 10 11)     // Center block top (Block 0)
+            (11 12 13 8)    // East block top (Block 1)
+            (8 13 14 9)     // North block top (Block 2)
+            (9 14 15 10)    // West block top (Block 3)
+            (10 15 12 11)   // South block top (Block 4)
+        );
+    }
+
+    // Front and Back faces for 2D simulation slice
+    frontAndBack
+    {
+        type empty;
+        faces
+        (
+            // Combine faces from wallBottom and wallTop
+            // Faces at z=0 (front)
+            (0 1 2 3)
+            (3 4 5 0) // East bottom
+            (0 5 6 1) // North bottom
+            (1 6 7 2) // West bottom
+            (2 7 4 3) // South bottom
+            // Faces at z=H (back) - Reversed order for outward normal
+            (8 9 10 11)
+            (11 12 13 8) // East top
+            (8 13 14 9) // North top
+            (9 14 15 10) // West top
+            (10 15 12 11) // South top
+        );
+    }
+);
+
+// ************************************************************************* //

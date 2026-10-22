@@ -1,0 +1,63 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2406                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      thermophysicalProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+thermoType
+{
+    type            heRhoThermo;
+    mixture         pureMixture;
+    transport       polynomial; // NOTE: Requires polynomial mu and kappa
+    thermo          hPolynomial;  // NOTE: Requires polynomial Cp
+    equationOfState icoPolynomial; // This is where rho(T) polynomial goes
+    specie          specie;
+    energy          sensibleEnthalpy;
+}
+
+mixture
+{
+    specie
+    {
+        nMoles          1;
+        molWeight       18.015;
+    }
+
+    equationOfState // For icoPolynomial
+    {
+        // 4th Order Polynomial fit for rho(T[K])
+        rhoCoeffs<8>   (8.428e+02 1.821e+00 -8.085e-03 1.665e-05 -1.297e-08 0 0 0);
+    }
+
+    thermodynamics // For hPolynomial (Cp(T))
+    {
+        Tlow            273.15;
+        Thigh           373.15;
+        Tcommon         298.15; // Or your reference T
+        Hf              0;
+        Sf              0;
+        // Define Cp = poly(T)
+        // Example: Cp = A + B*T + C*T^2 + ... (up to 8 coeffs)
+        CpCoeffs<8>    (4180 0 0 0 0 0 0 0); 
+    }
+
+    transport // For polynomial transport (mu(T), kappa(T))
+    {
+        // Define mu = poly(T)
+        // Example: mu = A + B*T + ... (up to 8 coeffs)
+        muCoeffs<8>     (1e-3 0 0 0 0 0 0 0); 
+
+        // Define kappa = poly(T)
+        // Example: kappa = A + B*T + ... (up to 8 coeffs)
+        kappaCoeffs<8>  (0.6 0 0 0 0 0 0 0); 
+    }
+}

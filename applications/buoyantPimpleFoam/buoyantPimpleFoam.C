@@ -125,7 +125,6 @@ int main(int argc, char *argv[])
     labelList wallPatchIDs;
     if (!wallPatchNames.empty()) {
          wallPatchIDs.setSize(wallPatchNames.size());
-         // FIX: Use fvBoundaryMesh type
          const fvBoundaryMesh& patches = mesh.boundary();
          forAll(wallPatchNames, i) {
              label patchID = patches.findPatchID(wallPatchNames[i]);

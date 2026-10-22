@@ -7,32 +7,39 @@ using Logging
 
 # Adjust the path if your controller file is located elsewhere
 include("../controllers/mpc_dense.jl")
+include("../controllers/mpc_alter.jl")
+
 
 # --- Configuration ---
 # Create a configuration dictionary similar to your TOML file
 # **** MUST BE ADJUSTED BY USER ****
-reference = -1e6
+reference = -3e6
 config = Dict(
     "controller" => Dict(
-        "type" => "DenseMPC",
+        "type" => "AlterMPC",
         "params" => Dict(
-            "DenseMPC" => Dict(
+            "AlternatingMPC" => Dict(
                 # --- CRITICAL: Set the path to your matrix file ---
                 "matrix_file" => "./ABC.jld2",
 
                 # --- MPC Tuning Parameters (Example Values - Adjust!) ---
-                "Np" => 50,  # Prediction horizon
+                "Np" => 30,  # Prediction horizon
                 "Nc" => 10,   # Control horizon
                 "Q" => 1,  # Base weight for state error (applied to diagonal)
                              # Q[1,1] might be implicitly higher if xref focuses on x[1]
                 "R_diag" => fill(0.1, 16), # Weight for control input theta (16 elements)
                 "x0ref" => reference, # Base value for reference state (see below)
-                "input_delays" => 100,
+                "input_delays" => 60,
 
                 # --- Constraints on theta ---
-                "umin" => fill(-1.5, 16), # Lower bound for theta
-                "umax" => fill(1.5, 16),  # Upper bound for theta
+                "umin" => fill(0.05, 16), # Lower bound for theta
+                "umax" => fill(2, 16),  # Upper bound for theta
 
+
+                "u_phys_min" => [-2.0, -2.0, -2.0, -2.0], # Vector length m
+                "u_phys_max" => [2.0, 2.0, 2.0, 2.0],     # Vector length m
+                "v_phys_min" => [-2.0, -2.0, -2.0, -2.0], # Vector length n
+                "v_phys_max" => [2.0, 2.0, 2.0, 2.0],     # Vector length n
                 # --- Optional OSQP Settings ---
                 "osqp_settings" => Dict(
                     # :verbose => true, # Uncomment for solver details
@@ -57,7 +64,8 @@ Nsim = Int(round(Tsim / dt))
 local A, B, mean_vec, controller
 try
     # Instantiate the controller using the config
-    global controller = DenseMPCController(config)
+    # global controller = DenseMPCController(config)
+    global controller = AlternatingMPCController(config)
 
     # Extract A, B, mean_vec (for simulation state updates and reference)
     # We assume the controller loaded these correctly internally

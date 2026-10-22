@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Makie Plot Editor - Data-Driven Inspector</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="font-sans">
+
+<div class="app-container">
+    <div class="menu-bar">
+        <div class="menu-bar-item"> File
+            <div class="dropdown-menu">
+                <a href="#">Open Data...</a> <a href="#">Save Plot As...</a> <hr>
+                <a href="#">Export Makie Code...</a> <hr> <a href="#">Exit</a>
+            </div>
+        </div>
+        <div class="menu-bar-item"> Edit
+            <div class="dropdown-menu">
+                <a href="#">Undo</a> <a href="#">Redo</a> <hr> <a href="#">Copy Plot Image</a>
+            </div>
+        </div>
+        <div class="menu-bar-item"> View
+            <div class="dropdown-menu">
+                <a href="#" id="toggleSidebarLink">Toggle Inspector</a>
+                <a href="#">Reset View</a> <hr>
+                <div class="px-2 py-1">
+                    <label for="theme-selector-menu" class="form-label !mb-1 !text-xs !text-menu-bar-text">Theme:</label>
+                    <select id="theme-selector-menu" class="form-select !text-xs !py-0.5 !bg-white !text-menu-bar-text !border-menu-bar-border">
+                        <option value="default">Default Theme</option>
+                        <option value="theme_dark_inspector">Dark Inspector (Current)</option>
+                        <option value="theme_light_inspector">Light Inspector</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="menu-bar-item">Plot</div> <div class="menu-bar-item">Help</div>
+        <button id="toggleSidebarButton" title="Toggle Inspector Panel" class="menu-bar-item icon-button">
+            <svg id="sidebarToggleIcon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M15 3v18"></path><path d="m8 9 3 3-3 3"></path>
+            </svg>
+        </button>
+    </div>
+
+    <div class="main-content">
+        <div class="plot-area-container">
+            <div id="plot-display" class="w-full h-full max-w-5xl max-h-5xl shadow-md flex items-center justify-center text-plot-display-border text-xl border">
+                Makie Plot Area
+            </div>
+        </div>
+
+        <aside id="controlPanel" class="control-panel">
+            <div class="inspector-header">Inspector</div>
+            <ul id="inspectorTreeView" class="tree-view"></ul>
+        </aside>
+    </div>
+
+    <footer class="status-bar">
+        Status: Ready | Plot: MyPlot.jl | Zoom: 100%
+    </footer>
+</div>
+
+<script>
+    // Tailwind config (already in style.css via the <style> block in the original HTML,
+    // but good to have it here for reference if you decide to build Tailwind)
+    // For CDN usage, this is not strictly needed in JS if styles are in CSS.
+    // However, if style.css doesn't include the Tailwind config, it should be here.
+    // For simplicity with CDN, we'll assume the config embedded in style.css works.
+    // If not, it would be:
+    // tailwind.config = { ... } // as in the original HTML's <script> tag
+</script>
+<script src="js/ui.js"></script>
+<script src="js/websocket_client.js"></script>
+<script src="js/plot_display.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

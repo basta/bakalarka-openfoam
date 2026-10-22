@@ -1,0 +1,8 @@
+[deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+JSServe = "824d6782-a2ef-11e9-3a09-e5662e0c26f9"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
+WebSockets = "104b5d7c-a370-577a-8038-80a2059c5097"

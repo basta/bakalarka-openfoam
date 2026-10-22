@@ -1,0 +1,145 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2406                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      fvSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+solvers
+{
+    p_rgh
+{
+        solver          PCG;
+        preconditioner  FDIC;
+        tolerance       1e-06;
+        relTol          0.05;
+        pRefCell        0;
+        pRefValue       0;
+    }
+
+    p_rghFinal {
+        $p_rgh;
+        tolerance       1e-06;
+        relTol          0.01;
+    }
+
+
+    U
+    {
+        solver          GAMG;
+        preconditioner  DIC;
+        smoother        DILU;
+        tolerance       1e-06;
+        relTol          0;
+    }
+
+    UFinal {
+        $U;
+        relTol          0;
+    }
+
+    T
+    {
+        solver          PBiCGStab;
+        preconditioner  DILU;
+        smoother        symGaussSeidel;
+        tolerance       1e-06;
+        relTol          0.05;
+    }
+
+    TFinal { //TODO ?
+        $T;
+        relTol          0;
+    }
+
+    rho
+    {
+        solver PCG;
+        preconditioner DIC;
+        tolerance 1e-05;
+        relTol 0.1;
+    }
+
+    rhoFinal
+    {
+        $rho;
+        relTol 0;
+    }
+
+
+    h
+    {
+        solver          PBiCGStab;
+        preconditioner  DILU;
+        smoother        symGaussSeidel;
+        tolerance       1e-6;
+        relTol          0;
+    }
+
+    hFinal
+    {
+        $h;
+        relTol 0;
+    }
+    he_0
+    {
+        solver          PBiCGStab;
+        preconditioner  DILU;
+        smoother        symGaussSeidel;
+        tolerance       1e-6;
+        relTol          0;
+    }
+
+    he_0Final
+    {
+        $he_0;
+        relTol 0;
+    }
+
+
+
+
+
+
+   relaxationFactors
+   {
+       equations
+       {
+           U               0.5;
+           h               0.5;
+       }
+   }
+}
+
+PISO
+{
+    nCorrectors     2;
+    nNonOrthogonalCorrectors 0;
+    pRefCell        0;
+    pRefValue       0;
+}
+
+PIMPLE
+{
+  pRefCell       100;
+  pRefValue      0;
+
+  nOuterCorrectors    2;
+  nCorrectors         2;        // Increase for better pressure-velocity coupling
+  nNonOrthogonalCorrectors 0;   // Increase for highly non-orthogonal meshes
+
+
+
+}
+
+
+// ************************************************************************* //

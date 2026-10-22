@@ -1,7 +1,7 @@
 [simulation]
 # Simulation settings remain important
 port = 8080
-case_dir = "../new-sim/" # Path to your OpenFOAM case
+case_dir = "../cyl/" # Path to your OpenFOAM case
 
 [logging]
 # Configure logging for this specific run

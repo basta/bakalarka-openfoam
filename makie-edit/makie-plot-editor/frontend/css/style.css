@@ -1,0 +1,243 @@
+/* Tailwind CSS Configuration - this would typically be in tailwind.config.js and processed by a build step.
+   For CDN usage, this JS object is usually embedded in a <script> tag in the HTML.
+   However, since we are using a separate CSS file, we'll put the actual CSS rules here.
+   The JS config part is for reference.
+*/
+/*
+    tailwind.config = {
+        theme: {
+            extend: {
+                fontFamily: {
+                    sans: ['Inter', 'sans-serif'],
+                },
+                colors: {
+                    'inspector-bg': '#3C3C3C',
+                    'inspector-header-bg': '#2D2D2D',
+                    'inspector-tree-bg': '#3C3C3C',
+                    'inspector-content-bg': '#333333',
+                    'inspector-border': '#2A2A2A',
+                    'inspector-text': '#D1D1D1',
+                    'inspector-text-secondary': '#9E9E9E',
+                    'inspector-accent': '#007ACC',
+                    'inspector-accent-hover': '#0099FF',
+                    'inspector-item-hover': '#4A4A4A',
+                    'inspector-input-bg': '#2A2A2A',
+                    'inspector-input-border': '#555555',
+                    'menu-bar-bg': '#F5F5F5',
+                    'menu-bar-border': '#BDBDBD',
+                    'menu-bar-text': '#212121',
+                    'menu-bar-item-hover-bg': '#E3F2FD',
+                    'menu-bar-item-hover-text': '#1976D2',
+                    'plot-area-bg': '#E0E0E0',
+                    'plot-display-bg': '#FFFFFF',
+                    'plot-display-border': '#BDBDBD',
+                    'status-bar-bg': '#F5F5F5',
+                    'status-bar-text': '#757575',
+                }
+            }
+        }
+    }
+*/
+
+/* Custom scrollbar for webkit browsers - Dark theme for inspector */
+.control-panel::-webkit-scrollbar { width: 8px; height: 8px; }
+.control-panel::-webkit-scrollbar-track { background: #2A2A2A; border-radius: 0px; }
+.control-panel::-webkit-scrollbar-thumb { background: #555555; border-radius: 0px; }
+.control-panel::-webkit-scrollbar-thumb:hover { background: #6E6E6E; }
+/* General scrollbar for other parts */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #EEE; border-radius: 10px; }
+::-webkit-scrollbar-thumb { background: #BDBDBD; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #9E9E9E; }
+
+html, body { height: 100%; margin: 0; font-family: 'Inter', sans-serif; /* Ensure Tailwind's pro-background is applied if body class is set */ }
+.app-container { display: flex; flex-direction: column; height: 100vh; }
+
+/* Desktop-style Menu Bar */
+.menu-bar {
+    /* Use Tailwind classes in HTML or define here if preferred */
+    /* background-color: #F5F5F5; */ /* Replaced with pro-toolbar in HTML potentially */
+    /* border-bottom: 1px solid #BDBDBD; */
+    display: flex;
+    padding: 0 0.5rem;
+    height: 32px;
+    align-items: center;
+    font-size: 0.8125rem; /* 13px */
+    /* color: #212121; */
+}
+.menu-bar-item { padding: 0.4rem 0.6rem; cursor: pointer; position: relative; user-select: none; }
+.menu-bar-item:hover { /* background-color: #E3F2FD; color: #1976D2; */ } /* Handled by Tailwind potentially */
+.dropdown-menu { display: none; position: absolute; left: 0; top: 100%; background-color: #F5F5F5; /* pro-surface or menu-bar-bg */ border: 1px solid #BDBDBD; /* pro-border */ box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 100; min-width: 180px; padding: 0.25rem 0; }
+.menu-bar-item:hover .dropdown-menu { display: block; }
+.dropdown-menu a, .dropdown-menu button { display: block; padding: 0.4rem 0.8rem; /* color: #212121; */ text-decoration: none; white-space: nowrap; font-size: 0.8125rem; }
+.dropdown-menu a:hover, .dropdown-menu button:hover { /* background-color: #E3F2FD; color: #1976D2; */ }
+.dropdown-menu hr { border-top: 1px solid #BDBDBD; margin: 0.25rem 0; }
+.menu-bar-item.icon-button { margin-left: auto; padding: 0.25rem; }
+.menu-bar-item.icon-button:hover { /* background-color: #E3F2FD; */ }
+.menu-bar-item.icon-button svg { /* stroke: #212121; */ }
+
+
+.main-content { flex-grow: 1; display: flex; overflow: hidden; }
+.plot-area-container {
+    flex-grow: 1; padding: 0.5rem; display: flex;
+    align-items: center; justify-content: center;
+    /* background-color: #E0E0E0; */ /* pro-background */
+}
+#plot-display {
+    /* background-color: #FFFFFF; */ /* pro-surface */
+    /* border: 1px solid #BDBDBD; */ /* pro-border */
+    border-radius: 0; /* Sharp corners */
+}
+
+/* Control Panel - Inspector Style */
+.control-panel {
+    width: 300px; min-width: 260px; max-width: 400px;
+    /* background-color: #3C3C3C; */ /* inspector-bg */
+    /* border-left: 1px solid #2A2A2A; */ /* inspector-border */
+    overflow-y: auto;
+    transition: width 0.2s ease-in-out;
+    font-size: 0.75rem; /* 12px */
+    /* color: #D1D1D1; */ /* inspector-text */
+}
+.control-panel.collapsed { width: 0; min-width: 0; overflow: hidden; border-left: none; }
+
+.inspector-header {
+    padding: 0.4rem 0.6rem; font-weight: 600;
+    /* background-color: #2D2D2D; */ /* inspector-header-bg */
+    /* border-bottom: 1px solid #2A2A2A; */ /* inspector-border */
+    /* color: #D1D1D1; */ /* inspector-text */
+    text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+.tree-view { padding: 0.25rem; }
+.tree-view ul, .tree-view li { list-style: none; padding-left: 0; margin: 0; }
+/* .tree-view li {} */ /* This is the .tree-node element in JS */
+.tree-node-label { display: flex; align-items: center; padding: 0.3rem 0.4rem; cursor: pointer; user-select: none; border-radius: 0px; }
+.tree-node-label:hover { /* background-color: #4A4A4A; */ /* inspector-item-hover */ }
+.tree-node.selected > .tree-node-label { /* background-color: #007ACC; color: white; */ } /* inspector-accent */
+.tree-node .icon-chevron { width: 12px; height: 12px; margin-right: 0.3rem; fill: currentColor; transition: transform 0.15s ease-out; }
+.tree-node .icon-item { width: 12px; height: 12px; margin-right: 0.4rem; /* fill: #9E9E9E; */ /* inspector-text-secondary */ }
+.tree-node.expanded > .tree-node-label .icon-chevron { transform: rotate(90deg); }
+.tree-node-children { padding-left: 0.75rem; display: none; /* background-color: #333333; */ /* inspector-content-bg */ /* border-top: 1px solid #2A2A2A; */ /* inspector-border */ }
+.tree-node.expanded > .tree-node-children { display: block; }
+.control-section-content { padding: 0.5rem 0.6rem; }
+.control-section-content .form-group { margin-bottom: 0.4rem; }
+.control-section-content .form-group:last-child { margin-bottom: 0; }
+
+
+.form-label { display: block; margin-bottom: 0.15rem; font-size: 0.7rem; font-weight: 400; /* color: #9E9E9E; */ /* inspector-text-secondary */ text-transform: capitalize; }
+.form-input, .form-select { width: 100%; padding: 0.25rem 0.4rem; font-size: 0.75rem; /* border: 1px solid #555555; */ /* inspector-input-border */ border-radius: 0px; /* background-color: #2A2A2A; */ /* inspector-input-bg */ /* color: #D1D1D1; */ /* inspector-text */ box-shadow: none; }
+.form-input:focus, .form-select:focus { /* border-color: #007ACC; */ /* inspector-accent */ /* box-shadow: 0 0 0 1px #007ACC; */ outline: none; /* background-color: #3C3C3C; */ /* inspector-bg */ }
+.form-color-picker { width: 100%; height: 20px; padding: 0; /* border: 1px solid #555555; */ border-radius: 0px; /* background-color: #2A2A2A; */ cursor: pointer; }
+.form-color-picker::-webkit-color-swatch-wrapper { padding: 1px; }
+.form-color-picker::-webkit-color-swatch { border: none; border-radius: 0px; }
+.form-checkbox { width: 0.8rem; height: 0.8rem; border-radius: 0px; /* border: 1px solid #555555; */ /* background-color: #2A2A2A; */ /* color: #007ACC; */ margin-right: 0.3rem; vertical-align: middle; }
+.form-checkbox:focus { /* ring: 1px; ring-color: #007ACC; outline: 1px solid #007ACC; */ }
+.checkbox-label { font-size: 0.75rem; /* color: #D1D1D1; */ vertical-align: middle; }
+.input-group-sm { display: flex; gap: 0.25rem; }
+.input-group-sm > .form-input { min-width: 0; }
+
+.status-bar {
+    /* background-color: #F5F5F5; */ /* status-bar-bg */
+    /* color: #757575; */ /* status-bar-text */
+    font-size: 0.7rem; /* 11px */
+    padding: 0.2rem 0.5rem;
+    /* border-top: 1px solid #BDBDBD; */ /* menu-bar-border */
+    text-align: left;
+    height: 20px;
+}
+
+/* Apply Tailwind theme colors using CSS variables for easier management if not using Tailwind directly for these */
+body {
+    background-color: var(--plot-area-bg, #E0E0E0);
+    color: var(--menu-bar-text, #212121);
+}
+.menu-bar {
+    background-color: var(--menu-bar-bg, #F5F5F5);
+    border-bottom: 1px solid var(--menu-bar-border, #BDBDBD);
+    color: var(--menu-bar-text, #212121);
+}
+.menu-bar-item:hover {
+    background-color: var(--menu-bar-item-hover-bg, #E3F2FD);
+    color: var(--menu-bar-item-hover-text, #1976D2);
+}
+.menu-bar-item.icon-button svg {
+    stroke: var(--menu-bar-text, #212121);
+}
+.dropdown-menu {
+    background-color: var(--menu-bar-bg, #F5F5F5);
+    border: 1px solid var(--menu-bar-border, #BDBDBD);
+}
+.dropdown-menu a, .dropdown-menu button {
+    color: var(--menu-bar-text, #212121);
+}
+.dropdown-menu a:hover, .dropdown-menu button:hover {
+    background-color: var(--menu-bar-item-hover-bg, #E3F2FD);
+    color: var(--menu-bar-item-hover-text, #1976D2);
+}
+.plot-area-container {
+    background-color: var(--plot-area-bg, #E0E0E0);
+}
+#plot-display {
+    background-color: var(--plot-display-bg, #FFFFFF);
+    border: 1px solid var(--plot-display-border, #BDBDBD);
+    color: var(--plot-display-border); /* For placeholder text */
+}
+.control-panel {
+    background-color: var(--inspector-bg, #3C3C3C);
+    border-left: 1px solid var(--inspector-border, #2A2A2A);
+    color: var(--inspector-text, #D1D1D1);
+}
+.inspector-header {
+    background-color: var(--inspector-header-bg, #2D2D2D);
+    border-bottom: 1px solid var(--inspector-border, #2A2A2A);
+    color: var(--inspector-text, #D1D1D1);
+}
+.tree-node-label:hover {
+    background-color: var(--inspector-item-hover, #4A4A4A);
+}
+.tree-node.selected > .tree-node-label {
+    background-color: var(--inspector-accent, #007ACC);
+    color: white;
+}
+.tree-node .icon-item {
+    fill: var(--inspector-text-secondary, #9E9E9E);
+}
+.tree-node-children {
+    background-color: var(--inspector-content-bg, #333333);
+    border-top: 1px solid var(--inspector-border, #2A2A2A);
+}
+.form-label {
+    color: var(--inspector-text-secondary, #9E9E9E);
+}
+.form-input, .form-select {
+    border: 1px solid var(--inspector-input-border, #555555);
+    background-color: var(--inspector-input-bg, #2A2A2A);
+    color: var(--inspector-text, #D1D1D1);
+}
+.form-input:focus, .form-select:focus {
+    border-color: var(--inspector-accent, #007ACC);
+    box-shadow: 0 0 0 1px var(--inspector-accent, #007ACC);
+    background-color: var(--inspector-bg, #3C3C3C);
+}
+.form-color-picker {
+    border: 1px solid var(--inspector-input-border, #555555);
+    background-color: var(--inspector-input-bg, #2A2A2A);
+}
+.form-checkbox {
+    border: 1px solid var(--inspector-input-border, #555555);
+    background-color: var(--inspector-input-bg, #2A2A2A);
+    color: var(--inspector-accent, #007ACC); /* For the checkmark */
+}
+.form-checkbox:focus {
+    outline: 1px solid var(--inspector-accent, #007ACC);
+}
+.checkbox-label {
+    color: var(--inspector-text, #D1D1D1);
+}
+.status-bar {
+    background-color: var(--status-bar-bg, #F5F5F5);
+    color: var(--status-bar-text, #757575);
+    border-top: 1px solid var(--menu-bar-border, #BDBDBD);
+}
+
